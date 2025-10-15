@@ -59,7 +59,7 @@ class DiagonallyStripedLattice(Lattice):
         super().__init__(sites)
 
         nn_templates = [(1,0), (0,1), (-1,0), (0,-1)]
-        #self.sites.pop('(2,2)')
+
         for site in self.sites:
             nxi, nyi = site
 
