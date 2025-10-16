@@ -69,6 +69,7 @@ class Model:
                     i=map2[nn]
                     hkp[i,j] = fact(i,j,kx, ky)
                     hkh[i,j] = -np.conjugate(fact(i,j,kx, ky))
+
             if self.kind == 'DSL':
                 for os in range(d1):
                     site = map[os]
@@ -76,8 +77,11 @@ class Model:
                     hkp[os,os] = self.mu[num[0]]
                     hkh[os,os] = -np.conjugate(self.mu[num[0]])
             elif self.kind == 'dDSL':
-                hkp[0,0]=self.mu[0]
-                hkh[0,0]=-np.conjugate(self.mu[0])
+                for os in range(d1):
+                    site = map[os]
+                    num = [key for key,val in mu_d.items() if site in val]
+                    hkp[os,os] = self.mu[num[0]]
+                    hkh[os,os] = -np.conjugate(self.mu[num[0]])
 
             #hk[np.abs(hk) < eps] = 0
             A = np.zeros((self.dim,self.dim), dtype=complex)
