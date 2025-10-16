@@ -27,26 +27,25 @@ class Model:
 
         
         mu_d = {i: [((i+j)%self.N, j) for j in range(self.N)] for i in range(self.N)} #associate each site to its group of stripes via the chemical potential index
-        print(mu_d)
+        
         c=0
-        map={}
-        map2={}
+        map_site={}
+        map_idx={}
         for el in mu_d:
             for site in mu_d[el]:
-                map[c] = site
-                map2[site] = c
+                map_site[c] = site
+                map_idx[site] = c
                 c+=1
-        print(map2)
 
+        # print(mu_d)
+        # print(map_idx)
 
         d1 = self.N**2 #for one spin direction
-        H = np.zeros((d1, d1), dtype=complex)
-
-        
+        H = np.zeros((d1, d1), dtype=complex)        
         
         def fact(i,j,kx,ky):
-            site = map[j]
-            nn = map[i]
+            site = map_site[j]
+            nn = map_site[i]
             R = lat.nn[site][nn]
             f=0
 
@@ -59,19 +58,19 @@ class Model:
         def Hk(kx, ky): 
             """Evaluate the Hamiltonian at given kx, ky."""
              
-            hkp = np.empty_like(H, dtype=complex)
-            hkh = np.empty_like(H, dtype=complex)
+            hkp = np.zeros_like(H, dtype=complex)
+            hkh = np.zeros_like(H, dtype=complex)
 
             eps = 1e-15
             for site in lat.nn:
                 for nn in lat.nn[site]:
-                    j=map2[site]
-                    i=map2[nn]
+                    j=map_idx[site]
+                    i=map_idx[nn]
                     hkp[i,j] = fact(i,j,kx, ky)
                     hkh[i,j] = -np.conjugate(fact(i,j,kx, ky))
             if self.kind == 'DSL':
                 for os in range(d1):
-                    site = map[os]
+                    site = map_site[os]
                     num = [key for key,val in mu_d.items() if site in val]
                     hkp[os,os] = self.mu[num[0]]
                     hkh[os,os] = -np.conjugate(self.mu[num[0]])
