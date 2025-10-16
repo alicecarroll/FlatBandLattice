@@ -25,9 +25,9 @@ class Lattice:
             ax.scatter(site[0], site[1], c='k')
       
         for site in self.nn:
-            for R in self.nn[site]:
+            for nn in self.nn[site]:
 
-                for nn in self.nn[site][R]:
+                for R in self.nn[site][nn]:
                     if R == (0,0):
                         x = [site[0], nn[0]]
                         y = [site[1], nn[1]]
@@ -68,10 +68,10 @@ class DiagonallyStripedLattice(Lattice):
                 Rxf, nxf = divmod(nxi + dx, self.N)
                 Ryf, nyf = divmod(nyi + dy, self.N)
                 if (nxf, nyf) in sites:
-                    if (Rxf, Ryf) in self.nn[site]:
-                        self.nn[site][(Rxf, Ryf)].append( (nxf, nyf) )
+                    if (nxf, nyf) in self.nn[site]:
+                        self.nn[site][(nxf, nyf)].append( (Rxf, Ryf) )
                     else: 
-                        self.nn[site][(Rxf, Ryf)] = [(nxf, nyf),]
+                        self.nn[site][(nxf, nyf)] = [(Rxf, Ryf),]
 
 class dDiagonallyStripedLattice(Lattice):
     def __init__(self, N=1):
@@ -95,7 +95,7 @@ class dDiagonallyStripedLattice(Lattice):
                 Rxf, nxf = divmod(nxi + dx, self.N)
                 Ryf, nyf = divmod(nyi + dy, self.N)
                 if (nxf, nyf) in sites:
-                    if (Rxf, Ryf) in self.nn[site]:
-                        self.nn[site][(Rxf, Ryf)].append( (nxf, nyf) )
+                    if (nxf, nyf) in self.nn[site]:
+                        self.nn[site][(nxf, nyf)].append( (Rxf, Ryf) )
                     else: 
-                        self.nn[site][(Rxf, Ryf)] = [(nxf, nyf),]
+                        self.nn[site][(nxf, nyf)] = [(Rxf, Ryf),]
