@@ -77,10 +77,11 @@ class Model:
                     hkh[os,os] = -np.conjugate(self.mu[num[0]])
             elif self.kind == 'dDSL':
                 for os in range(d1):
-                    site = map[os]
-                    num = [key for key,val in mu_d.items() if site in val]
-                    hkp[os,os] = self.mu[num[0]]
-                    hkh[os,os] = -np.conjugate(self.mu[num[0]])
+                    site = map_site[os]
+                    if site in lat.nn:
+                        num = [key for key,val in mu_d.items() if site in val]
+                        hkp[os,os] = self.mu[num[0]]
+                        hkh[os,os] = -np.conjugate(self.mu[num[0]])
 
             #hk[np.abs(hk) < eps] = 0
             A = np.zeros((self.dim,self.dim), dtype=complex)
