@@ -3,6 +3,27 @@ import numpy as np
 import scipy.constants as sc
 import matplotlib.pyplot as plt
 
+def diagnose(self):
+    for key, val in self.lat.nn.items():
+        print(f"Index {self.lat.map_indices[key]}: Site {key}: Neighbors {val}", flush=False)
+
+# --- Utilities ---------------------------------------------------------------
+def hermiticity_error(M: np.ndarray) -> float:
+    """Frobenius norm of the anti-Hermitian part; zero means Hermitian."""
+    return float(np.linalg.norm(M - M.conj().T, ord='fro'))
+
+def quick_hermiticity_report(model, ks=((0.0, 0.0), (0.3, -0.7), (np.pi/3, np.pi/5))):
+    """Print a quick hermiticity check for H0 and HBdG over a few k-points."""
+    H0 = model.get_H0()
+    HBdG = model.get_HBdG()
+    for kx, ky in ks:
+        Hk = H0(kx, ky)
+        HBdGk = HBdG(kx, ky)
+        print(
+            f"k=({kx:.3f},{ky:.3f}) -> |H0-H0^†|_F={hermiticity_error(Hk):.2e}, "
+            f"|HBdG-HBdG^†|_F={hermiticity_error(HBdGk):.2e}"
+        )
+
 class Model:
     def __init__(self, lat=lattice.Lattice(sites=[]), **kwargs):
 
@@ -28,13 +49,7 @@ class Model:
 
     def get_hopping(self, i, j, k):
         """Default hopping function."""
-        site = self.lat.map_sites[j]
-        nn = self.lat.map_sites[i]
-        R = np.stack(self.lat.nn[site][nn]).T
-        
-        f = self.t * np.exp(1j * np.dot(k, self.lat.mapback(np.asarray(nn) - np.asarray(site))))
-        f *= np.sum(np.exp(1j * self.lat.N * np.dot(k, np.array(R))))
-        return f
+        return 0.0
     
     def get_onsite_pairing(self, i):
         """Default onsite energy function."""
@@ -88,6 +103,35 @@ class Model:
         
         return HBdG
 
+def _init_square_base(self, N=1, **kwargs):
+    """Base initialization for square-lattice-type models"""
+
+    self.t = kwargs.get('t', 1.0)
+    
+    for param in ['mu', 'delta', 'ns', 'U']:
+        value = kwargs.get(param, None)
+        if value is None: value = .0
+        assert isinstance(value, float), f"Parameter {param} must be a float"
+        setattr(self, param, value)
+
+    def get_onsite_energy(i):
+        return -self.mu - self.U/2 * self.ns
+    setattr(self, 'get_onsite_energy', get_onsite_energy)
+
+    def get_hopping(i, j, k):
+        site = self.lat.map_sites[j]
+        nn = self.lat.map_sites[i]
+        R = np.stack(self.lat.nn[site][nn]).T
+        
+        f = self.t * np.exp(-1j * np.dot(k, self.lat.mapback(np.asarray(nn) - np.asarray(site))))
+        f *= np.sum(np.exp(-1j * N * np.dot(k, np.array(R))))
+        return f 
+    setattr(self, 'get_hopping', get_hopping)
+
+    def get_onsite_pairing(i):
+        return self.delta
+    setattr(self, 'get_onsite_pairing', get_onsite_pairing)
+
 def _init_DSLmodel_base(self, N=1, **kwargs):
     """Base initialization for DSL-type models"""
 
@@ -104,9 +148,30 @@ def _init_DSLmodel_base(self, N=1, **kwargs):
         return -self.mu[idx] - self.U[idx]/2 * self.ns[idx]
     setattr(self, 'get_onsite_energy', get_onsite_energy)
 
+    def get_hopping(i, j, k):
+        site = self.lat.map_sites[j]
+        nn = self.lat.map_sites[i]
+        R = np.stack(self.lat.nn[site][nn]).T
+
+        
+        f = self.t * np.exp(-1j * np.dot(k, self.lat.mapback(np.asarray(nn) - np.asarray(site))))
+        f *= np.sum(np.exp(-1j * N * np.dot(k, np.array(R))))
+        return f 
+    setattr(self, 'get_hopping', get_hopping)
+
     def get_onsite_pairing(i):
         return self.delta[self.lat.map_diag[i]]
-    setattr(self, 'get_onsite_pairing', get_onsite_pairing)    
+    setattr(self, 'get_onsite_pairing', get_onsite_pairing)   
+
+class SquareLatticeModel(Model):
+    def __init__(self, **kwargs):
+
+        self.lat = lattice.SquareLattice()
+        super().__init__(lat=self.lat)
+
+        _init_square_base(self, 1, **kwargs)
+        self.n = 1
+        self.dim = 4 * self.n
 
 class DSLmodel(Model):
     def __init__(self, N=1, **kwargs):
@@ -115,8 +180,8 @@ class DSLmodel(Model):
         super().__init__(lat=self.lat)
 
         _init_DSLmodel_base(self, N, **kwargs)
-        self.dim = 4 * self.lat.N**2
         self.n = self.lat.N**2
+        self.dim = 4 * self.n
 
 class dDSLmodel(Model):
     def __init__(self, N=1, **kwargs):
@@ -125,5 +190,15 @@ class dDSLmodel(Model):
         super().__init__(lat=self.lat)
 
         _init_DSLmodel_base(self, N, **kwargs)
-        self.dim = 4 * (self.lat.N**2-self.lat.N+1)
         self.n = self.lat.N**2 - self.lat.N + 1
+        self.dim = 4 * self.n
+
+class LiebNmodel(Model):
+    def __init__(self, N=1, **kwargs):
+
+        self.lat = lattice.LiebNLattice(N=N)
+        super().__init__(lat=self.lat)
+
+        _init_square_base(self, N, **kwargs)
+        self.n = 2 * self.lat.N - 1
+        self.dim = 4 * self.n

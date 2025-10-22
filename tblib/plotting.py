@@ -62,7 +62,8 @@ def plot_bands(H, nk=200, hsp_path='GXM', ax=None, **kwargs):
         ax.plot(range(n), band, color='black')
         
     # ax.set_xlabel("$(k_x a,k_y a)$", size='x-large')
-    ax.set_ylabel("Energy (t)", size='x-large')
+    ylabel = kwargs.get('ylabel', 'Energy (t)')
+    if ylabel: ax.set_ylabel(ylabel, size='x-large')
     ax.set_xticks(ticks=hsp_indices, labels=[hsp_labels[hsp] for hsp in hsp_path])
     ax.tick_params(labelsize='x-large')
     for i in hsp_indices:
@@ -75,7 +76,7 @@ def plot_DOS(H, s=(1,1), elim=(-1, 1), ne=200, nk=40, sig=5e-2, ax=None, **kwarg
     dos = np.zeros(ne)
     e_array = np.linspace(elim[0], elim[1], ne)
 
-    k_lin = np.linspace(0, 2*np.pi, nk)
+    k_lin = np.linspace(0, 2*np.pi, nk, endpoint=False)
     kx, ky = np.meshgrid(k_lin, k_lin)
 
     kx /= s[0]
@@ -99,10 +100,11 @@ def plot_DOS(H, s=(1,1), elim=(-1, 1), ne=200, nk=40, sig=5e-2, ax=None, **kwarg
     if ax is None: _, ax = plt.subplots(figsize=(6,6))
 
     ylabel = kwargs.get('ylabel', 'Energy (t)')
+    xlabel = kwargs.get('xlabel', 'DOS')
 
     ax.plot(dos, e_array, color='black')
-    ax.set_xlabel("DOS", size='x-large')
-    if ylabel is not None: ax.set_ylabel(ylabel, size='x-large')
+    if xlabel: ax.set_xlabel(xlabel, size='x-large')
+    if ylabel: ax.set_ylabel(ylabel, size='x-large')
     ax.tick_params(labelsize='x-large')
 
     return ax

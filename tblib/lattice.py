@@ -11,22 +11,23 @@ class Lattice:
         self.map_indices = {site: i for i, site in enumerate(self.sites)}
 
         self.mapback = lambda s: s # Default: identity mapping
+        # self.N = 1  # Default supercell size
 
     def update_maps(self):
         self.map_sites = {i: site for i, site in enumerate(self.sites)}
         self.map_indices = {site: i for i, site in enumerate(self.sites)}
 
     def plot_lattice(self, ax=None):
-        if ax is None: fig, ax = plt.subplots()
+        if ax is None: _, ax = plt.subplots()
         ax.set_aspect('equal')
         ax.set_xticks([])
         ax.set_yticks([])
         for site in self.sites:
             ax.scatter(site[0], site[1], c='k')
-        return fig, ax
+        return ax
     
     def plot_nn(self, ax=None):
-        if ax is None: fig, ax = plt.subplots()
+        if ax is None: _, ax = plt.subplots()
         ax.set_aspect('equal')
         ax.set_xticks([])
         ax.set_yticks([])
@@ -48,7 +49,7 @@ class Lattice:
                         y2 = [nn[1], nn[1]-R[1]/2]
                         ax.plot(x1, y1, c='blue')
                         ax.plot(x2, y2, c='blue')
-        return fig, ax
+        return ax
 
 class SquareLattice(Lattice):
     def __init__(self):
@@ -58,7 +59,7 @@ class SquareLattice(Lattice):
         self.nn[(0, 0)] = {(0, 0): [(1, 0), (0, 1), (-1, 0), (0, -1)]}
         self.update_maps()
 
-def _init_DSL_base(self):
+def _init_square_base(self):
 
     nn_templates = [(1,0), (0,1), (-1,0), (0,-1)]
 
@@ -75,11 +76,18 @@ def _init_DSL_base(self):
                 else: 
                     self.nn[site][(nxf, nyf)] = [(Rxf, Ryf),]
 
-    self.mapback = lambda s: ([s[0]%self.N, s[1]%self.N])
-    setattr(self, 'map_diag', 
-        {self.map_indices[site]: (site[0]+site[1])%self.N for site in self.sites})
+    # Use the raw displacement between sites (no modulo) so that forward and reverse
+    # hops are exact negatives of each other. This ensures k-space phases are
+    # complex conjugates and the Hamiltonian remains Hermitian.
+    self.mapback = lambda s: s
     
     self.update_maps()
+
+def _init_DSL_base(self):
+
+    _init_square_base(self)
+    setattr(self, 'map_diag', 
+        {self.map_indices[site]: (site[0]+site[1])%self.N for site in self.sites})
 
 class DiagonallyStripedLattice(Lattice):
     def __init__(self, N=1):
@@ -98,3 +106,14 @@ class dDiagonallyStripedLattice(Lattice):
 
         super().__init__(sites)
         _init_DSL_base(self)
+
+class LiebNLattice(Lattice):
+    def __init__(self, N=1):
+
+        self.N = N
+        sites = [(0, n) for n in range(self.N)]
+        sites += [(n, 0) for n in range(1, self.N)]
+
+        super().__init__(sites)
+
+        _init_square_base(self)
