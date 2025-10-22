@@ -3,9 +3,18 @@ import matplotlib.pyplot as plt
 class Lattice:
     def __init__(self, sites):
         
-        self.sites = {tuple(s) for s in sites}
+        self.sites = list(set({tuple(s) for s in sites}))
         self.nn = {site: {} for site in self.sites}
         self.nn_dir = {site: {} for site in self.sites} # For later
+
+        self.map_sites = {i: site for i, site in enumerate(self.sites)}
+        self.map_indices = {site: i for i, site in enumerate(self.sites)}
+
+        self.mapback = lambda s: s # Default: identity mapping
+
+    def update_maps(self):
+        self.map_sites = {i: site for i, site in enumerate(self.sites)}
+        self.map_indices = {site: i for i, site in enumerate(self.sites)}
 
     def plot_lattice(self, ax=None):
         if ax is None: fig, ax = plt.subplots()
@@ -41,61 +50,51 @@ class Lattice:
                         ax.plot(x2, y2, c='blue')
         return fig, ax
 
-
 class SquareLattice(Lattice):
     def __init__(self):
         sites = {(0, 0)}
         super().__init__(sites)
         
         self.nn[(0, 0)] = {(0, 0): [(1, 0), (0, 1), (-1, 0), (0, -1)]}
+        self.update_maps()
+
+def _init_DSL_base(self):
+
+    nn_templates = [(1,0), (0,1), (-1,0), (0,-1)]
+
+    for site in self.sites:
+        nxi, nyi = site
+
+        for dx, dy in nn_templates:
+
+            Rxf, nxf = divmod(nxi + dx, self.N)
+            Ryf, nyf = divmod(nyi + dy, self.N)
+            if (nxf, nyf) in self.sites:
+                if (nxf, nyf) in self.nn[site]:
+                    self.nn[site][(nxf, nyf)].append( (Rxf, Ryf) )
+                else: 
+                    self.nn[site][(nxf, nyf)] = [(Rxf, Ryf),]
+
+    self.mapback = lambda s: ([s[0]%self.N, s[1]%self.N])
+    setattr(self, 'map_diag', 
+        {self.map_indices[site]: (site[0]+site[1])%self.N for site in self.sites})
+    
+    self.update_maps()
 
 class DiagonallyStripedLattice(Lattice):
     def __init__(self, N=1):
 
         self.N = N
-
         sites = [(nx, ny) for nx in range(self.N) for ny in range(self.N)]
         
         super().__init__(sites)
-
-        nn_templates = [(1,0), (0,1), (-1,0), (0,-1)]
-
-        for site in self.sites:
-            nxi, nyi = site
-
-            for dx, dy in nn_templates:
-
-                Rxf, nxf = divmod(nxi + dx, self.N)
-                Ryf, nyf = divmod(nyi + dy, self.N)
-                if (nxf, nyf) in sites:
-                    if (nxf, nyf) in self.nn[site]:
-                        self.nn[site][(nxf, nyf)].append( (Rxf, Ryf) )
-                    else: 
-                        self.nn[site][(nxf, nyf)] = [(Rxf, Ryf),]
+        _init_DSL_base(self)
 
 class dDiagonallyStripedLattice(Lattice):
     def __init__(self, N=1):
 
         self.N = N
-
-        sites = [(nx, ny) for nx in range(self.N) for ny in range(self.N)]
-        for site in sites[1:]:
-            if site[0]==site[1]:
-                sites.remove(site)
+        sites = [(nx, ny) for nx in range(self.N) for ny in range(self.N) if (nx!=ny or nx==0)]
 
         super().__init__(sites)
-
-        nn_templates = [(1,0), (0,1), (-1,0), (0,-1)]
-        #self.sites.pop('(2,2)')
-        for site in self.sites:
-            nxi, nyi = site
-
-            for dx, dy in nn_templates:
-
-                Rxf, nxf = divmod(nxi + dx, self.N)
-                Ryf, nyf = divmod(nyi + dy, self.N)
-                if (nxf, nyf) in sites:
-                    if (nxf, nyf) in self.nn[site]:
-                        self.nn[site][(nxf, nyf)].append( (Rxf, Ryf) )
-                    else: 
-                        self.nn[site][(nxf, nyf)] = [(Rxf, Ryf),]
+        _init_DSL_base(self)
