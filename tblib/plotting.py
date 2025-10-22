@@ -40,12 +40,17 @@ def get_k_path(nk, hsp_path):
 
     hsp_indices = np.cumsum([0] + segment_lengths)
 
-    return k_path, hsp_indices
+    return np.array(k_path), hsp_indices
 
 
 def plot_bands(H, nk=200, hsp_path='GXM', ax=None, **kwargs):
 
     k_path, hsp_indices = get_k_path(nk, hsp_path)
+
+    s = kwargs.get('s', (1,1))
+    k_path[:,0] /= s[0]
+    k_path[:,1] /= s[1]
+
     n = len(k_path)
     Hk = H(k_path[0][0], k_path[0][0])
     energies = np.zeros((n, Hk.shape[0]))
