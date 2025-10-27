@@ -21,74 +21,105 @@ class Model:
         self.ns = kwargs.get('ns', np.zeros(self.N))
         self.U = kwargs.get('U', np.ones(self.N))
 
+        if self.kind == 'DSL':
+            self.lat = lattice.DiagonallyStripedLattice(N=self.N)
+        if self.kind == 'dDSL':
+            self.lat = lattice.dDiagonallyStripedLattice(N=self.N)
+
+        self.as_d = {i: [site for site in self.lat.nn if site in [((i+j)%self.N, j) for j in range(self.N)]] for i in range(self.N)} # atomic species dictionary associate each site to its group of stripes
+        c=0
+        self.map_site={}
+        self.map_idx={}
+        for el in self.as_d:
+            for site in self.as_d[el]:
+                self.map_site[c] = site
+                self.map_idx[site] = c
+                c+=1
+
         self.Hk = self.HBdG()
 
+        
+    def striped_props(self):
+        deltalist = []
+        mulist = []
+        nslist = []
+        Ulist = [] 
+        
+        for i in self.map_site:
+            site = self.map_site[i]
+            num = [key for key,val in self.as_d.items() if site in val]
+            
+            deltalist.append(self.delta[num[0]])
+            mulist.append(self.mu[num[0]])
+            nslist.append(self.ns[num[0]])
+            Ulist.append(self.U[num[0]])
 
-
+        return deltalist, mulist, nslist, Ulist
+            
+        
     def HBdG(self):
         """Construct the k-space Hamiltonian function."""
 
-        if self.kind == 'DSL':
-            lat = lattice.DiagonallyStripedLattice(N=self.N)
-            n = self.N**2
-        if self.kind == 'dDSL':
-            lat = lattice.dDiagonallyStripedLattice(N=self.N)
-            n = self.N**2-self.N+1
+        n=int(self.dim/4)
 
-        as_d = {i: [site for site in lat.nn if site in [((i+j)%self.N, j) for j in range(self.N)]] for i in range(self.N)} # atomic species dictionary associate each site to its group of stripes
-        c=0
-        map_site={}
-        map_idx={}
-        for el in as_d:
-            for site in as_d[el]:
-                map_site[c] = site
-                map_idx[site] = c
-                c+=1
-
+        deltas, mus, nss, Us = self.striped_props()
         H = np.zeros((n, n), dtype=complex)        
 
-        def fact(i,j,kx,ky):
-            site = map_site[j]
-            nn = map_site[i]
-            R = lat.nn[site][nn]
+        def fact(i,j,kx,ky,o=0):
+            '''
+            returns the Hamiltonian entry for a hopping process from site j to i
+
+            o = 0,'x' or 'y' determines whether the normal Hamiltonian is calculated (0)
+            or a derivative to kx ('x') or ky ('y')
+            '''
+            site = self.map_site[j]
+            nn = self.map_site[i]
+            R = self.lat.nn[site][nn]
             f=0
 
             for v in R:
-                f+=-self.t*np.exp(-(0+1j)*(kx*(nn[0]-site[0])/self.N+ky*(nn[1]-site[1])/self.N))*np.exp((0+1j)*(kx*v[0]+ky*v[1]))
+                if o==0:
+                    f+=-self.t*np.exp(-(0+1j)*(kx*(nn[0]-site[0])/self.N+ky*(nn[1]-site[1])/self.N))*np.exp((0+1j)*(kx*v[0]+ky*v[1]))
+                elif o=='x':
+                    f+=-self.t*(-(0+1j)*(nn[0]-site[0])/self.N)*np.exp(-(0+1j)*(kx*(nn[0]-site[0])/self.N+ky*(nn[1]-site[1])/self.N))*np.exp((0+1j)*(kx*v[0]+ky*v[1]))
+                    f+=-self.t*(-(0+1j)*v[0])*np.exp(-(0+1j)*(kx*(nn[0]-site[0])/self.N+ky*(nn[1]-site[1])/self.N))*np.exp((0+1j)*(kx*v[0]+ky*v[1]))
+                elif o=='y':
+                    f+=-self.t*(-(0+1j)*(nn[1]-site[1])/self.N)*np.exp(-(0+1j)*(kx*(nn[0]-site[0])/self.N+ky*(nn[1]-site[1])/self.N))*np.exp((0+1j)*(kx*v[0]+ky*v[1]))
+                    f+=-self.t*(-(0+1j)*v[1])*np.exp(-(0+1j)*(kx*(nn[0]-site[0])/self.N+ky*(nn[1]-site[1])/self.N))*np.exp((0+1j)*(kx*v[0]+ky*v[1]))
             
             return f
+        
+        
 
 
-        def Hk(kx, ky): 
+        def Hk(kx, ky, o=0): 
             """Evaluate the Hamiltonian at given kx, ky."""
              
             hkp = np.zeros_like(H, dtype=complex) #normal state hamiltonian particles
             hkh = np.zeros_like(H, dtype=complex) #normal state hamiltonian holes
             
 
-            for site in lat.nn:
-                for nn in lat.nn[site]:
-                    j=map_idx[site]
-                    i=map_idx[nn]
-                    hkp[i,j] = fact(i,j,kx, ky)
-                    hkh[i,j] = -np.conjugate(fact(i,j,-kx, -ky))
+            for site in self.lat.nn:
+                for nn in self.lat.nn[site]:
+                    j=self.map_idx[site]
+                    i=self.map_idx[nn]
+                    hkp[i,j] = fact(i,j,kx, ky,o)
+                    hkh[i,j] = -np.conjugate(fact(i,j,-kx, -ky,o))
 
-            for os in range(n):
-                site = map_site[os]
-                if site in lat.nn:
-                    num = [key for key,val in as_d.items() if site in val]
-                    hkp[os,os] = -self.mu[num[0]]-self.U[num[0]]/2*self.ns[num[0]]
-                    hkh[os,os] = np.conjugate(self.mu[num[0]]+self.U[num[0]]/2*self.ns[num[0]])
+            for i in self.map_site:
+                if o ==0: 
+                    hkp[i,i] = -mus[i]-Us[i]/2*nss[i]
+                    hkh[i,i] = mus[i]+Us[i]/2*nss[i]
             
             #interaction according to AHM
             darr = np.zeros((2*n, 2*n), dtype=complex)  #order parameter
             #ddarr = np.zeros_like(H, dtype=complex) # order parameter dagger
-            for i in map_site:
-                site = map_site[i]
-                num = [key for key,val in as_d.items() if site in val]
-                delta = self.delta[num[0]]
-                darr[i,n+i] = -delta
-                darr[n+i,i] = delta
+            for i in self.map_site:
+                if o==0:
+                    site = self.map_site[i]
+                    delta = deltas[i]
+                    darr[i,n+i] = -delta
+                    darr[n+i,i] = delta
                     
 
             #hk[np.abs(hk) < eps] = 0
@@ -202,6 +233,160 @@ class Model:
             s1=0
             c+=1
         return res
- 
+    
+    def DeltaN(self, N, T, HF):
+            Us = self.striped_props()[3]
 
+            karr = np.linspace(-np.pi, np.pi, N)
+            a = int(self.dim/2)            
+
+            Delta=np.zeros((a,a), dtype=object)
+            Nu=np.zeros((a,a), dtype=object)
+
+            c=0
+            for x in karr:
+                for y in karr:
+                    c+=1
+
+                    evals1, Evec = np.linalg.eigh(self.Hk(x, y)[0])
+                    Evec = Evec.T
+                    
+                    evals = np.flip(evals1)[0:a]
+                    
+                    Carr= np.flip(Evec, axis=1)
+
+                    uk = Carr[0:a, 0:a]
+                    vk = Carr[0:a,a:]
+                    v=np.conjugate(Evec[a:, 0:a])
+                    u=np.conjugate(Evec[a:, a:])
+                    
+                    if T==0:
+                        el=np.matmul(np.conjugate(u.T),v)
+                        Delta+=el
+                        if HF:
+                            nu_el = np.matmul(np.conjugate(v.T), v)
+                            Nu+=nu_el
+
+                    else:
+                        el=np.matmul(np.conjugate(u.T),np.matmul(np.diag(1/(1+np.exp(-evals/T))), v))+np.matmul(vk.T,np.matmul(np.diag(1/(1+np.exp(evals/T))),np.conjugate(uk)))
+                        Delta+=el
+                        if HF:
+                            nu_el = np.matmul(np.conjugate(v.T),np.matmul(np.diag(1/(1+np.exp(-evals/T))), v))+np.matmul(uk.T,np.matmul(1/(1+np.exp(evals/T)), np.conjugate(uk)))
+                            Nu+=nu_el
+                    if np.isnan(el.any()):
+                        print(x, y, ': \n', el)
+                        print('u\n', u)
+                        print('evals\n', evals)          
+            
+            finNu = np.diag(Nu)/N**2
+            nu = [finNu[i]+finNu[int(i+a/2)] for i in range(int(a/2))]
+            delta = [-np.abs(Us[i])/N**2*Delta[i,int(i+a/2)] for i in range(int(a/2))]
+
+            delta2 = [delta[self.map_idx[(i,0)]] for i in range(self.N)]
+            nu2 = [nu[self.map_idx[(i,0)]] for i in range(self.N)]
+            return delta2,nu2
+        
+    def Deltra(self, N, T=0, g=0.01, HF=False, Nmax=20, Nmin=10, alpha=0.5):
+        
+        delarr = np.array(self.delta)
+        nuarr = np.array(self.ns)
+
+        dels = delarr.reshape(self.N,1)
+        nus = nuarr.reshape(self.N,1)
+
+        c=0
+        while (c<Nmax and (np.std(np.abs(dels), axis=1)>g).any()) or c<Nmin:
+            c+=1
+
+            Vals = self.DeltaN(N, T, HF)
+
+            delarro = delarr
+            nuarro = nuarr
+
+            delta = Vals[0]
+
+            delarr = np.array(delta)
+            delarr = alpha*delarro+(1-alpha)*delarr
+
+            self.delta =delarr
+
+            if HF:
+                nu = Vals[1]
+                
+                nuarr = np.array(nu)
+                nuarr = alpha*nuarro+(1-alpha)*nuarr
+
+                self.ns = nuarr
+
+            dels = np.concatenate((dels, delarr.reshape(self.N,1)), axis=1)
+            nus = np.concatenate((nus, nuarr.reshape(self.N,1)), axis=1)
+
+
+        avdel = np.average(dels[:,-10:], axis=1) 
+        avnu = np.average(nus[:,-10:], axis=1)  
+        dels = np.concatenate((dels, avdel.reshape(self.N,1)), axis=1)
+        nus = np.concatenate((nus, avnu.reshape(self.N,1)), axis=1)
+
+        self.delta = avdel
+        self.ns = avnu
+        
+        return dels, nus
+
+
+
+    def fermidirac(self,E,T,o=0):
+        if o==0:
+            if np.abs(E)<1e-14 and T!=0:
+                nE = 1
+            elif T==0:
+                if E>0:
+                    nE = 0
+                elif E<0:
+                    nE = 1
+            else:
+                nE = 1/(1+np.exp(E/T))
+        elif o==1:
+            if np.abs(E)<1e-14 and T!=0:
+                nE = 1/(4*T)
+            elif T==0:
+                nE = 0
+            else:
+                nE = 1/((1+np.exp(E/T))**2)*np.exp(E)/T
+
+        
+        return nE
+    
+
+    def SFW(self, N, T=0, my='x', ny='y'):
+
+        gammaz = np.kron(np.diag([1,-1]), np.eye(int(self.dim/2)))
+        sum = 0
+        karr = np.linspace(-np.pi,np.pi,N)
+
+        for kx in karr:
+            for ky in karr:
+                evals, evec = np.linalg.eigh(self.Hk(kx,ky)[0])
+                Evec = evec.T 
+
+                nE = [self.fermidirac(E,T) for E in evals]
+                dnE = [self.fermidirac(E,T,o=1) for E in evals]
+                for k,i in enumerate(evals):
+                    for l,j in enumerate(evals):
+                        if np.abs(i-j)<1e-14 or k==l:
+                            pf = -dnE[l]
+                        else:
+                            pf = (nE[l]-nE[k])/(i-j)
+                        
+                        f1 = np.matmul(Evec[k],np.matmul(self.Hk(kx,ky,o=my)[0],Evec[l]))
+                        f2 = np.matmul(Evec[l],np.matmul(self.Hk(kx,ky,o=ny)[0],Evec[k]))
+
+                        M1 = np.matmul(self.Hk(kx,ky,o=my)[0],gammaz)
+                        M2 = np.matmul(gammaz,self.Hk(kx,ky,o=ny)[0])
+
+                        f3 = np.matmul(Evec[k],np.matmul(M1,Evec[l]))
+                        f4 = np.matmul(Evec[l],np.matmul(M2,Evec[k]))
+
+                        sum+=pf*(f1*f2-f3*f4)
+        
+        return sum
 
