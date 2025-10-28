@@ -62,7 +62,6 @@ class Model:
 
         n=int(self.dim/4)
 
-        deltas, mus, nss, Us = self.striped_props()
         H = np.zeros((n, n), dtype=complex)        
 
         def fact(i,j,kx,ky,o=0):
@@ -94,7 +93,8 @@ class Model:
 
         def Hk(kx, ky, o=0): 
             """Evaluate the Hamiltonian at given kx, ky."""
-             
+            deltas, mus, nss, Us = self.striped_props()
+
             hkp = np.zeros_like(H, dtype=complex) #normal state hamiltonian particles
             hkh = np.zeros_like(H, dtype=complex) #normal state hamiltonian holes
             
@@ -118,8 +118,8 @@ class Model:
                 if o==0:
                     site = self.map_site[i]
                     delta = deltas[i]
-                    darr[i,n+i] = -delta
-                    darr[n+i,i] = delta
+                    darr[i,n+i] = delta
+                    darr[n+i,i] = -delta
                     
 
             #hk[np.abs(hk) < eps] = 0
@@ -250,9 +250,9 @@ class Model:
 
                     evals1, Evec = np.linalg.eigh(self.Hk(x, y)[0])
                     Evec = Evec.T
-                    
+
                     evals = np.flip(evals1)[0:a]
-                    
+
                     Carr= np.flip(Evec, axis=1)
 
                     uk = Carr[0:a, 0:a]
@@ -322,8 +322,8 @@ class Model:
             nus = np.concatenate((nus, nuarr.reshape(self.N,1)), axis=1)
 
 
-        avdel = np.average(dels[:,-10:], axis=1) 
-        avnu = np.average(nus[:,-10:], axis=1)  
+        avdel = np.average(dels[:,-3:], axis=1) 
+        avnu = np.average(nus[:,-3:], axis=1)  
         dels = np.concatenate((dels, avdel.reshape(self.N,1)), axis=1)
         nus = np.concatenate((nus, avnu.reshape(self.N,1)), axis=1)
 
@@ -372,19 +372,19 @@ class Model:
                 dnE = [self.fermidirac(E,T,o=1) for E in evals]
                 for k,i in enumerate(evals):
                     for l,j in enumerate(evals):
-                        if np.abs(i-j)<1e-14 or k==l:
+                        if np.abs(i-j)<1e-10 or k==l:
                             pf = -dnE[l]
                         else:
-                            pf = (nE[l]-nE[k])/(i-j)
+                            pf = (nE[k]-nE[l])/(j-i)
                         
-                        f1 = np.matmul(Evec[k],np.matmul(self.Hk(kx,ky,o=my)[0],Evec[l]))
-                        f2 = np.matmul(Evec[l],np.matmul(self.Hk(kx,ky,o=ny)[0],Evec[k]))
+                        f1 = np.matmul(Evec[l],np.matmul(self.Hk(kx,ky,o=my)[0],Evec[k]))
+                        f2 = np.matmul(Evec[k],np.matmul(self.Hk(kx,ky,o=ny)[0],Evec[l]))
 
                         M1 = np.matmul(self.Hk(kx,ky,o=my)[0],gammaz)
                         M2 = np.matmul(gammaz,self.Hk(kx,ky,o=ny)[0])
 
-                        f3 = np.matmul(Evec[k],np.matmul(M1,Evec[l]))
-                        f4 = np.matmul(Evec[l],np.matmul(M2,Evec[k]))
+                        f3 = np.matmul(Evec[l],np.matmul(M1,Evec[k]))
+                        f4 = np.matmul(Evec[k],np.matmul(M2,Evec[l]))
 
                         sum+=pf*(f1*f2-f3*f4)
         
