@@ -1,69 +1,70 @@
 import numpy as np
 from .fermi import fermi_dirac, fermi_dirac_prime
 
-def DeltaN(model, HF, temperature=.0, nk=40):
+# Partially refactored: need check expressions and test
 
-    karr = np.linspace(-np.pi, np.pi, nk)
-    k_grid = np.array(np.meshgrid(karr, karr)).T.reshape(-1,2)
+def cooper(u, v, uk, vk, evals, T=.0):
+    if np.abs(T) < 1e-10: return np.matmul(np.conjugate(v.T), v)
+    res = np.matmul(np.conjugate(u.T),np.matmul(np.diag(1/(1+np.exp(-evals/T))), v))
+    res += np.matmul(vk.T,np.matmul(np.diag(1/(1+np.exp(evals/T))),np.conjugate(uk)))
+    return res
 
-    a = int(model.dim/2)   
-    Delta=np.zeros((a,a), dtype=object)
-    Nu=np.zeros((a,a), dtype=object)
+def hartree(v, uk, evals, T=.0):
+    if np.abs(T) < 1e-10: return np.matmul(np.conjugate(v.T), v)
+    res = np.matmul(np.conjugate(v.T),np.matmul(np.diag(1/(1+np.exp(-evals/T))), v))
+    res += np.matmul(uk.T,np.matmul(1/(1+np.exp(evals/T)), np.conjugate(uk)))
+    return res
 
+def get_mean_fields(model, k_grid, HF_Q=True, T=.0):
+    """Compute Cooper and Hartree mean-field channels once."""
+
+    sdim = int( 2 * model.n ) # Single-particle dimension
+    PairingMatrix = np.zeros((sdim,sdim), dtype=complex)
+    OccupationMatrix = np.zeros((sdim,sdim), dtype=complex)
+
+    # Get updated Hamiltonian
     HBdG = model.get_HBdG()
 
+    nk = len(k_grid)
     for kx, ky in k_grid:
+        evals, evecs = np.linalg.eigh(HBdG(kx, ky))
 
-        evals, evec = np.linalg.eigh(HBdG(kx, ky))
+        upk = evecs[sdim:, :sdim]
+        vpk = evecs[:sdim, :sdim]
+        vmk = evecs[sdim:, sdim:]
+        umk = evecs[:sdim, sdim:]
 
-        evals = np.flip(evals)[0:a]
-
-        Carr= np.flip(evec.T, axis=1)
-
-        uk = Carr[0:a, 0:a]
-        vk = Carr[0:a,a:]
-        v=np.conjugate(evec.T[a:, 0:a])
-        u=np.conjugate(evec.T[a:, a:])
+        PairingMatrix += cooper(umk, vmk, upk, vpk, evals, T=.0)
+        if HF_Q: OccupationMatrix += hartree(vmk, upk, evals, T=.0)
         
-        if T==0:
-            el=np.matmul(np.conjugate(u.T),v)
-            Delta+=el
-            if HF:
-                nu_el = np.matmul(np.conjugate(v.T), v)
-                Nu+=nu_el
+    OccArr = np.diag(OccupationMatrix) / nk
+    Delta = [-np.abs(model.U[i]) / nk * PairingMatrix[i,int(i+sdim/2)] for i in range(int(a/2))]
+    Nu = [OccArr[i]+OccArr[int(i+sdim/2)] for i in range(int(sdim/2))]
 
-        else:
-            el=np.matmul(np.conjugate(u.T),np.matmul(np.diag(1/(1+np.exp(-evals/T))), v))+np.matmul(vk.T,np.matmul(np.diag(1/(1+np.exp(evals/T))),np.conjugate(uk)))
-            Delta+=el
-            if HF:
-                nu_el = np.matmul(np.conjugate(v.T),np.matmul(np.diag(1/(1+np.exp(-evals/T))), v))+np.matmul(uk.T,np.matmul(1/(1+np.exp(evals/T)), np.conjugate(uk)))
-                Nu+=nu_el
-        if np.isnan(el.any()):
-            print(x, y, ': \n', el)
-            print('u\n', u)
-            print('evals\n', evals)          
+    Delta = np.array([Delta[model.lat.map_idx[(i,0)]] for i in range(model.lat.N)])
+    Nu = np.array([Nu[model.lat.map_idx[(i,0)]] for i in range(model.lat.N)])
+
+    return Delta, Nu
+
+
+# Not refactored yet   
+def Deltra(model, N, T=0, g=0.01, HF=False, Nmax=20, Nmin=10, alpha=0.5):
     
-    finNu = np.diag(Nu)/N**2
-    nu = [finNu[i]+finNu[int(i+a/2)] for i in range(int(a/2))]
-    delta = [-np.abs(Us[i])/N**2*Delta[i,int(i+a/2)] for i in range(int(a/2))]
+    delarr = np.array(model.delta)
+    nuarr = np.array(model.ns)
 
-    delta2 = [delta[self.map_idx[(i,0)]] for i in range(self.N)]
-    nu2 = [nu[self.map_idx[(i,0)]] for i in range(self.N)]
-    return delta2,nu2
-        
-def Deltra(self, N, T=0, g=0.01, HF=False, Nmax=20, Nmin=10, alpha=0.5):
-    
-    delarr = np.array(self.delta)
-    nuarr = np.array(self.ns)
+    dels = delarr.reshape(model.N,1)
+    nus = nuarr.reshape(model.N,1)
 
-    dels = delarr.reshape(self.N,1)
-    nus = nuarr.reshape(self.N,1)
+    nk = 40    
+    k_arr = np.linspace(-np.pi, np.pi, nk)
+    k_grid = np.array(np.meshgrid(k_arr, k_arr)).T.reshape(-1,2)
 
     c=0
     while (c<Nmax and (np.std(np.abs(dels), axis=1)>g).any()) or c<Nmin:
         c+=1
 
-        Vals = self.DeltaN(N, T, HF)
+        get_mean_fields(model, k_grid, HF_Q=True, T=.0)
 
         delarro = delarr
         nuarro = nuarr
