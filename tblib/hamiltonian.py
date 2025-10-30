@@ -8,6 +8,7 @@ class Model:
     def __init__(self, **kwargs):
 
         self.N = kwargs.get('N', 2)
+        self.T = kwargs.get('T', 0)
         self.kind = kwargs.get('kind', 'DSL')
         if self.kind == 'DSL':
             self.dim = self.N**2*4
@@ -234,7 +235,7 @@ class Model:
             c+=1
         return res
     
-    def DeltaN(self, N, T, HF):
+    def DeltaN(self, N, HF):
             Us = self.striped_props()[3]
 
             karr = np.linspace(-np.pi, np.pi, N)
@@ -260,7 +261,7 @@ class Model:
                     v=np.conjugate(Evec[a:, 0:a])
                     u=np.conjugate(Evec[a:, a:])
                     
-                    if T==0:
+                    if self.T==0:
                         el=np.matmul(np.conjugate(u.T),v)
                         Delta+=el
                         if HF:
@@ -268,10 +269,10 @@ class Model:
                             Nu+=nu_el
 
                     else:
-                        el=np.matmul(np.conjugate(u.T),np.matmul(np.diag(1/(1+np.exp(-evals/T))), v))+np.matmul(vk.T,np.matmul(np.diag(1/(1+np.exp(evals/T))),np.conjugate(uk)))
+                        el=np.matmul(np.conjugate(u.T),np.matmul(np.diag(1/(1+np.exp(-evals/self.T))), v))+np.matmul(vk.T,np.matmul(np.diag(1/(1+np.exp(evals/self.T))),np.conjugate(uk)))
                         Delta+=el
                         if HF:
-                            nu_el = np.matmul(np.conjugate(v.T),np.matmul(np.diag(1/(1+np.exp(-evals/T))), v))+np.matmul(uk.T,np.matmul(1/(1+np.exp(evals/T)), np.conjugate(uk)))
+                            nu_el = np.matmul(np.conjugate(v.T),np.matmul(np.diag(1/(1+np.exp(-evals/self.T))), v))+np.matmul(uk.T,np.matmul(1/(1+np.exp(evals/self.T)), np.conjugate(uk)))
                             Nu+=nu_el
                     if np.isnan(el.any()):
                         print(x, y, ': \n', el)
@@ -286,7 +287,7 @@ class Model:
             nu2 = [nu[self.map_idx[(i,0)]] for i in range(self.N)]
             return delta2,nu2
         
-    def Deltra(self, N, T=0, g=0.01, HF=False, Nmax=20, Nmin=10, alpha=0.5):
+    def Deltra(self, N, g=0.01, HF=False, Nmax=20, Nmin=10, alpha=0.5):
         
         delarr = np.array(self.delta)
         nuarr = np.array(self.ns)
@@ -298,7 +299,7 @@ class Model:
         while (c<Nmax and (np.std(np.abs(dels), axis=1)>g).any()) or c<Nmin:
             c+=1
 
-            Vals = self.DeltaN(N, T, HF)
+            Vals = self.DeltaN(N, HF)
 
             delarro = delarr
             nuarro = nuarr
@@ -334,59 +335,72 @@ class Model:
 
 
 
-    def fermidirac(self,E,T,o=0):
+    def fermidirac(self,E,o=0):
+        
+        nE=0
         if o==0:
-            if np.abs(E)<1e-14 and T!=0:
+            if np.abs(E)<1e-14 and self.T!=0:
                 nE = 1
-            elif T==0:
+            elif self.T==0:
                 if E>0:
                     nE = 0
-                elif E<0:
+                else:
                     nE = 1
             else:
-                nE = 1/(1+np.exp(E/T))
+                nE = 1/(1+np.exp(E/self.T))
         elif o==1:
-            if np.abs(E)<1e-14 and T!=0:
-                nE = 1/(4*T)
-            elif T==0:
+            if np.abs(E)<1e-14 and self.T!=0:
+                nE = 1/(4*self.T)
+            elif self.T==0:
                 nE = 0
             else:
-                nE = 1/((1+np.exp(E/T))**2)*np.exp(E)/T
-
+                nE = 1/((1+np.exp(E/self.T))**2)*np.exp(E)/self.T
         
         return nE
     
 
-    def SFW(self, N, T=0, my='x', ny='y'):
+    def SFW(self, N, my='x', ny='y'):
 
         gammaz = np.kron(np.diag([1,-1]), np.eye(int(self.dim/2)))
         sum = 0
-        karr = np.linspace(-np.pi,np.pi,N)
+        karr = np.linspace(-np.pi,np.pi*0.1,N)
 
         for kx in karr:
             for ky in karr:
+
+                M1 = np.matmul(self.Hk(kx,ky,o=my)[0],gammaz)
+                M2 = np.matmul(gammaz,self.Hk(kx,ky,o=ny)[0])
+                
                 evals, evec = np.linalg.eigh(self.Hk(kx,ky)[0])
                 Evec = evec.T 
 
-                nE = [self.fermidirac(E,T) for E in evals]
-                dnE = [self.fermidirac(E,T,o=1) for E in evals]
+                nE = [self.fermidirac(E,o=0) for E in evals]
+                dnE = [self.fermidirac(E,o=1) for E in evals]
                 for k,i in enumerate(evals):
                     for l,j in enumerate(evals):
                         if np.abs(i-j)<1e-10 or k==l:
                             pf = -dnE[l]
                         else:
                             pf = (nE[k]-nE[l])/(j-i)
-                        
-                        f1 = np.matmul(Evec[l],np.matmul(self.Hk(kx,ky,o=my)[0],Evec[k]))
-                        f2 = np.matmul(Evec[k],np.matmul(self.Hk(kx,ky,o=ny)[0],Evec[l]))
 
-                        M1 = np.matmul(self.Hk(kx,ky,o=my)[0],gammaz)
-                        M2 = np.matmul(gammaz,self.Hk(kx,ky,o=ny)[0])
+                        if pf==0:
+                            sum+=0
+                        else:
+                            f1 = np.matmul(np.conjugate(Evec[l]),np.matmul(self.Hk(kx,ky,o=my)[0],Evec[k]))
+                            f2 = np.matmul(np.conjugate(Evec[k]),np.matmul(self.Hk(kx,ky,o=ny)[0],Evec[l]))
 
-                        f3 = np.matmul(Evec[l],np.matmul(M1,Evec[k]))
-                        f4 = np.matmul(Evec[k],np.matmul(M2,Evec[l]))
+                            f3 = np.matmul(np.conjugate(Evec[l]),np.matmul(M1,Evec[k]))
+                            f4 = np.matmul(np.conjugate(Evec[k]),np.matmul(M2,Evec[l]))
 
-                        sum+=pf*(f1*f2-f3*f4)
+                            sum+=pf*(f1*f2-f3*f4)
         
         return sum
+    
+    def detSFW(self, N):
+        xx = self.SFW(N, my='x', ny='x')
+        xy = self.SFW(N, my='x', ny='y')
+        yx = self.SFW(N, my='y', ny='x')
+        yy = self.SFW(N, my='y', ny='y')
+        ten = np.array([[xx,xy],[yx,yy]])
+        return np.sqrt(np.linalg.det(ten))
 
