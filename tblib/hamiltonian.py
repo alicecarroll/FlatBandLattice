@@ -254,11 +254,11 @@ class Model:
 
                     evals = np.flip(evals1)[0:a]
 
-                    Carr= np.flip(Evec, axis=1)
+                    Carr= np.flip(Evec, axis=0)
 
-                    uk = Carr[0:a, 0:a]
+                    uk = Carr[0:a, 0:a] #k
                     vk = Carr[0:a,a:]
-                    v=np.conjugate(Evec[a:, 0:a])
+                    v=np.conjugate(Evec[a:, :a]) # -k
                     u=np.conjugate(Evec[a:, a:])
                     
                     if self.T==0:
@@ -269,14 +269,14 @@ class Model:
                             Nu+=nu_el
 
                     else:
-                        el=np.matmul(np.conjugate(u.T),np.matmul(np.diag(1/(1+np.exp(-evals/self.T))), v))+np.matmul(vk.T,np.matmul(np.diag(1/(1+np.exp(evals/self.T))),np.conjugate(uk)))
+                        el=np.matmul(np.conjugate(uk.T),np.matmul(np.diag(1/(1+np.exp(-evals/self.T))), vk))+np.matmul(vk.T,np.matmul(np.diag(1/(1+np.exp(evals/self.T))),np.conjugate(uk)))
                         Delta+=el
                         if HF:
-                            nu_el = np.matmul(np.conjugate(v.T),np.matmul(np.diag(1/(1+np.exp(-evals/self.T))), v))+np.matmul(uk.T,np.matmul(1/(1+np.exp(evals/self.T)), np.conjugate(uk)))
+                            nu_el = np.matmul(np.conjugate(vk.T),np.matmul(np.diag(1/(1+np.exp(-evals/self.T))), vk))+np.matmul(uk.T,np.matmul(1/(1+np.exp(evals/self.T)), np.conjugate(uk)))
                             Nu+=nu_el
                     if np.isnan(el.any()):
                         print(x, y, ': \n', el)
-                        print('u\n', u)
+                        print('u\n', uk)
                         print('evals\n', evals)          
             
             finNu = np.diag(Nu)/N**2
@@ -285,6 +285,7 @@ class Model:
 
             delta2 = [delta[self.map_idx[(i,0)]] for i in range(self.N)]
             nu2 = [nu[self.map_idx[(i,0)]] for i in range(self.N)]
+
             return delta2,nu2
         
     def Deltra(self, N, g=0.01, HF=False, Nmax=20, Nmin=10, alpha=0.5):
@@ -381,20 +382,20 @@ class Model:
                         if np.abs(i-j)<1e-10 or k==l:
                             pf = -dnE[l]
                         else:
-                            pf = (nE[k]-nE[l])/(j-i)
+                            pf = (nE[l]-nE[k])/(i-j)
 
                         if pf==0:
                             sum+=0
                         else:
-                            f1 = np.matmul(np.conjugate(Evec[l]),np.matmul(self.Hk(kx,ky,o=my)[0],Evec[k]))
-                            f2 = np.matmul(np.conjugate(Evec[k]),np.matmul(self.Hk(kx,ky,o=ny)[0],Evec[l]))
+                            f1 = np.matmul(np.conjugate(Evec[k]),np.matmul(self.Hk(kx,ky,o=my)[0],Evec[l]))
+                            f2 = np.matmul(np.conjugate(Evec[l]),np.matmul(self.Hk(kx,ky,o=ny)[0],Evec[k]))
 
-                            f3 = np.matmul(np.conjugate(Evec[l]),np.matmul(M1,Evec[k]))
-                            f4 = np.matmul(np.conjugate(Evec[k]),np.matmul(M2,Evec[l]))
+                            f3 = np.matmul(np.conjugate(Evec[k]),np.matmul(M1,Evec[l]))
+                            f4 = np.matmul(np.conjugate(Evec[l]),np.matmul(M2,Evec[k]))
 
                             sum+=pf*(f1*f2-f3*f4)
         
-        return sum
+        return sum/N**2
     
     def detSFW(self, N):
         xx = self.SFW(N, my='x', ny='x')
@@ -402,5 +403,5 @@ class Model:
         yx = self.SFW(N, my='y', ny='x')
         yy = self.SFW(N, my='y', ny='y')
         ten = np.array([[xx,xy],[yx,yy]])
-        return np.sqrt(np.linalg.det(ten))
+        return ten,np.sqrt(np.linalg.det(ten))
 
