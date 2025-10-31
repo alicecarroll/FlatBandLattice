@@ -160,8 +160,9 @@ class Model:
                 
             return eig.T
     
-    def plot_bands(self,k, p='all'):
+    def plot_bands(self, p='all'):
 
+        k=np.linspace(0,np.pi, 100)
         k1 = np.ones(100)
         k0 = np.zeros(100)
         path = np.concatenate((k, k, k*np.sqrt(2)))
@@ -254,41 +255,41 @@ class Model:
 
                     evals = np.flip(evals1)[0:a]
 
-                    Carr= np.flip(Evec, axis=0)
+                    vbar = Evec[:6, 0:6] #this is conjugate(v-k)
+                    ubar = Evec[:6, 6:]  #this is conjugate(u-k)
 
-                    uk = Carr[0:a, 0:a] #k
-                    vk = Carr[0:a,a:]
-                    v=np.conjugate(Evec[a:, :a]) # -k
-                    u=np.conjugate(Evec[a:, a:])
+                    Evec2 = np.flip(Evec, axis=0)
+                    u = Evec2[0:6, 0:6]
+                    v = Evec2[0:6, 6:]
                     
                     if self.T==0:
-                        el=np.matmul(np.conjugate(u.T),v)
+                        el=np.matmul(ubar.T,np.conjugate(vbar))
                         Delta+=el
                         if HF:
-                            nu_el = np.matmul(np.conjugate(v.T), v)
+                            nu_el = np.matmul(vbar.T, np.conjugate(vbar))
                             Nu+=nu_el
 
                     else:
-                        el=np.matmul(np.conjugate(uk.T),np.matmul(np.diag(1/(1+np.exp(-evals/self.T))), vk))+np.matmul(vk.T,np.matmul(np.diag(1/(1+np.exp(evals/self.T))),np.conjugate(uk)))
+                        el=np.matmul(np.conjugate(u.T),np.matmul(np.diag(1/(1+np.exp(-evals/self.T))), v))+np.matmul(v.T,np.matmul(np.diag(1/(1+np.exp(evals/self.T))),np.conjugate(u)))
                         Delta+=el
                         if HF:
-                            nu_el = np.matmul(np.conjugate(vk.T),np.matmul(np.diag(1/(1+np.exp(-evals/self.T))), vk))+np.matmul(uk.T,np.matmul(1/(1+np.exp(evals/self.T)), np.conjugate(uk)))
+                            nu_el = np.matmul(np.conjugate(v.T),np.matmul(np.diag(1/(1+np.exp(-evals/self.T))), v))+np.matmul(u.T,np.matmul(1/(1+np.exp(evals/self.T)), np.conjugate(u)))
                             Nu+=nu_el
                     if np.isnan(el.any()):
                         print(x, y, ': \n', el)
-                        print('u\n', uk)
+                        print('u\n', u)
                         print('evals\n', evals)          
             
             finNu = np.diag(Nu)/N**2
             nu = [finNu[i]+finNu[int(i+a/2)] for i in range(int(a/2))]
-            delta = [-np.abs(Us[i])/N**2*Delta[i,int(i+a/2)] for i in range(int(a/2))]
+            delta = [-np.abs(Us[i])/N**2*Delta[int(i+a/2),i] for i in range(int(a/2))]
 
             delta2 = [delta[self.map_idx[(i,0)]] for i in range(self.N)]
             nu2 = [nu[self.map_idx[(i,0)]] for i in range(self.N)]
 
             return delta2,nu2
         
-    def Deltra(self, N, g=0.01, HF=False, Nmax=20, Nmin=10, alpha=0.5):
+    def Deltra(self, N, g=0.001, HF=False, Nmax=50, Nmin=10, alpha=0.5):
         
         delarr = np.array(self.delta)
         nuarr = np.array(self.ns)
@@ -297,7 +298,7 @@ class Model:
         nus = nuarr.reshape(self.N,1)
 
         c=0
-        while (c<Nmax and (np.std(np.abs(dels), axis=1)>g).any()) or c<Nmin:
+        while (c<Nmax and (np.std(np.abs(dels[:,-3:]), axis=1)>g).any()) or c<Nmin:
             c+=1
 
             Vals = self.DeltaN(N, HF)
@@ -324,13 +325,13 @@ class Model:
             nus = np.concatenate((nus, nuarr.reshape(self.N,1)), axis=1)
 
 
-        avdel = np.average(dels[:,-3:], axis=1) 
-        avnu = np.average(nus[:,-3:], axis=1)  
-        dels = np.concatenate((dels, avdel.reshape(self.N,1)), axis=1)
-        nus = np.concatenate((nus, avnu.reshape(self.N,1)), axis=1)
+        #avdel = np.average(dels[:,-3:], axis=1) 
+        #avnu = np.average(nus[:,-3:], axis=1)  
+        #dels = np.concatenate((dels, avdel.reshape(self.N,1)), axis=1)
+        #nus = np.concatenate((nus, avnu.reshape(self.N,1)), axis=1)
 
-        self.delta = avdel
-        self.ns = avnu
+        #self.delta = avdel
+        #self.ns = avnu
         
         return dels, nus
 
@@ -351,12 +352,14 @@ class Model:
                 nE = 1/(1+np.exp(E/self.T))
         elif o==1:
             if np.abs(E)<1e-14 and self.T!=0:
-                nE = 1/(4*self.T)
+                nE = -1/(4*self.T)
+            elif np.abs(E)<1e-14 and self.T==0:
+                nE = -1/4
             elif self.T==0:
                 nE = 0
             else:
-                nE = 1/((1+np.exp(E/self.T))**2)*np.exp(E)/self.T
-        
+                nE = -1/((1+np.exp(E/self.T))**2)*np.exp(E/self.T)/self.T
+            
         return nE
     
 
