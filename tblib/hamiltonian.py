@@ -9,6 +9,7 @@ class Model:
 
         self.N = kwargs.get('N', 2)
         self.T = kwargs.get('T', 0)
+        self.nu = kwargs.get('nu', 3.0)
         self.kind = kwargs.get('kind', 'DSL')
         if self.kind == 'DSL':
             self.dim = self.N**2*4
@@ -289,7 +290,7 @@ class Model:
 
             return delta2,nu2
         
-    def Deltra(self, N, g=0.001, HF=False, Nmax=50, Nmin=10, alpha=0.5):
+    def Deltra(self, N, g=0.0001, HF=False, Nmax=50, Nmin=10, alpha=0.5):
         
         delarr = np.array(self.delta)
         nuarr = np.array(self.ns)
@@ -298,7 +299,7 @@ class Model:
         nus = nuarr.reshape(self.N,1)
 
         c=0
-        while (c<Nmax and (np.std(np.abs(dels[:,-3:]), axis=1)>g).any()) or c<Nmin:
+        while (c<Nmax and ((np.std(np.abs(dels[:,-3:]), axis=1)>g).any() and (np.std(np.abs(nus[:,-3:]), axis=1)>g).any())) or c<Nmin:
             c+=1
 
             Vals = self.DeltaN(N, HF)
@@ -323,7 +324,8 @@ class Model:
 
             dels = np.concatenate((dels, delarr.reshape(self.N,1)), axis=1)
             nus = np.concatenate((nus, nuarr.reshape(self.N,1)), axis=1)
-
+            
+                
 
         #avdel = np.average(dels[:,-3:], axis=1) 
         #avnu = np.average(nus[:,-3:], axis=1)  
