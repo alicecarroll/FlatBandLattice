@@ -9,7 +9,7 @@ class Model:
 
         self.N = kwargs.get('N', 2)
         self.T = kwargs.get('T', 0)
-        self.nu = kwargs.get('nu', 3.0)
+        self.nu = kwargs.get('nu', 0.0)
         self.kind = kwargs.get('kind', 'DSL')
         if self.kind == 'DSL':
             self.dim = self.N**2*4
@@ -120,8 +120,12 @@ class Model:
                 if o==0:
                     site = self.map_site[i]
                     delta = deltas[i]
-                    darr[i,n+i] = delta
-                    darr[n+i,i] = -delta
+                    #if Us[i]==0:
+                    #    darr[i,n+i] = 0
+                    #    darr[n+i,i] = 0
+                    #else:
+                    darr[i,n+i] = np.abs(Us[i])*delta
+                    darr[n+i,i] = -np.abs(Us[i])*delta
                     
 
             #hk[np.abs(hk) < eps] = 0
@@ -213,7 +217,7 @@ class Model:
     
     
     
-    def DOS(self, E, k, b=0, sig=5e-2, p='part'):
+    def DOS(self, N, E, b=0, sig=5e-2, p='part'):
         ''' 
         returns an array with the density of state values to each E
 
@@ -221,6 +225,8 @@ class Model:
         En is an array with the E-values for all k grid points of shape (3, ???) because we currently have 3 bands
         sigma is the width of the gauss function
         '''
+        k = np.linspace(-np.pi, np.pi, N)
+
         def Gauss(E, En, sig):
             return np.exp(-(E-En)**2/(2*sig**2))
             
@@ -283,7 +289,7 @@ class Model:
             
             finNu = np.diag(Nu)/N**2
             nu = [finNu[i]+finNu[int(i+a/2)] for i in range(int(a/2))]
-            delta = [-np.abs(Us[i])/N**2*Delta[int(i+a/2),i] for i in range(int(a/2))]
+            delta = [-Delta[int(i+a/2),i]/N**2 for i in range(int(a/2))]
 
             delta2 = [delta[self.map_idx[(i,0)]] for i in range(self.N)]
             nu2 = [nu[self.map_idx[(i,0)]] for i in range(self.N)]
@@ -293,49 +299,67 @@ class Model:
     def Deltra(self, N, g=0.0001, HF=False, Nmax=50, Nmin=10, alpha=0.5):
         
         delarr = np.array(self.delta)
-        nuarr = np.array(self.ns)
+        narr = np.array(self.ns)
 
         dels = delarr.reshape(self.N,1)
-        nus = nuarr.reshape(self.N,1)
+        ns = narr.reshape(self.N,1)
+
+        muarr = np.array(self.mu)
+        mus = muarr.reshape(self.N,1)
+
+        l1 = (np.std(np.abs(dels[:,-3:]), axis=1)>g).any()
+        l2 = (np.std(np.abs(ns[:,-3:]), axis=1)>g).any()
 
         c=0
-        while (c<Nmax and ((np.std(np.abs(dels[:,-3:]), axis=1)>g).any() and (np.std(np.abs(nus[:,-3:]), axis=1)>g).any())) or c<Nmin:
+        while (c<Nmax and (l1 or l2)) or c<Nmin:
             c+=1
 
             Vals = self.DeltaN(N, HF)
 
             delarro = delarr
-            nuarro = nuarr
+            narro = narr
 
             delta = Vals[0]
 
             delarr = np.array(delta)
             delarr = alpha*delarro+(1-alpha)*delarr
 
-            self.delta =delarr
+            self.delta = delarr
 
             if HF:
-                nu = Vals[1]
+                nv = Vals[1]
                 
-                nuarr = np.array(nu)
-                nuarr = alpha*nuarro+(1-alpha)*nuarr
+                narr = np.array(nv)
+                narr = alpha*narro+(1-alpha)*narr
 
-                self.ns = nuarr
+                self.ns = narr
 
             dels = np.concatenate((dels, delarr.reshape(self.N,1)), axis=1)
-            nus = np.concatenate((nus, nuarr.reshape(self.N,1)), axis=1)
+            ns = np.concatenate((ns, narr.reshape(self.N,1)), axis=1)
+
+            l1 = (np.std(np.abs(dels[:,-3:]), axis=1)>g).any()
+            l2 = (np.std(np.abs(ns[:,-3:]), axis=1)>g).any()
+
+            if self.nu!=0:
             
+                muarro = muarr
+                en=0
+                H = self.Hk(0,0)[0]
+                for i in range(int(self.dim/4)):
+                    en += -H[i,i]
+
+                mun = -1/(self.dim/4)*(self.U[0]/2*np.abs(self.nu-6)+en)
+
+                muarr = np.array([mun for i in range(self.N)])           
+                muarr = alpha*muarro+(1-alpha)*muarr
+
+                self.mu = muarr
+            mus = np.concatenate((mus, muarr.reshape(self.N,1)), axis=1)
                 
-
-        #avdel = np.average(dels[:,-3:], axis=1) 
-        #avnu = np.average(nus[:,-3:], axis=1)  
-        #dels = np.concatenate((dels, avdel.reshape(self.N,1)), axis=1)
-        #nus = np.concatenate((nus, avnu.reshape(self.N,1)), axis=1)
-
-        #self.delta = avdel
-        #self.ns = avnu
+                #l1 = (np.std(np.abs(mus[:,-3:]), axis=1)>g).any()
+            
+        return dels, ns, mus
         
-        return dels, nus
 
 
 
@@ -365,19 +389,22 @@ class Model:
         return nE
     
 
-    def SFW(self, N, my='x', ny='y'):
+    def SFW(self, N, my='x', ny='x'):
 
         gammaz = np.kron(np.diag([1,-1]), np.eye(int(self.dim/2)))
         sum = 0
-        karr = np.linspace(-np.pi,np.pi*0.1,N)
+        karr = np.linspace(-np.pi,np.pi,N)
 
         for kx in karr:
             for ky in karr:
+                H = self.Hk(kx,ky)[0]
+                dHdmy = self.Hk(kx,ky,o=my)[0]
+                dHdny = self.Hk(kx,ky,o=ny)[0]
 
-                M1 = np.matmul(self.Hk(kx,ky,o=my)[0],gammaz)
-                M2 = np.matmul(gammaz,self.Hk(kx,ky,o=ny)[0])
+                M1 = np.matmul(dHdmy,gammaz)
+                M2 = np.matmul(dHdny,gammaz)
                 
-                evals, evec = np.linalg.eigh(self.Hk(kx,ky)[0])
+                evals, evec = np.linalg.eigh(H)
                 Evec = evec.T 
 
                 nE = [self.fermidirac(E,o=0) for E in evals]
@@ -392,11 +419,11 @@ class Model:
                         if pf==0:
                             sum+=0
                         else:
-                            f1 = np.matmul(np.conjugate(Evec[k]),np.matmul(self.Hk(kx,ky,o=my)[0],Evec[l]))
-                            f2 = np.matmul(np.conjugate(Evec[l]),np.matmul(self.Hk(kx,ky,o=ny)[0],Evec[k]))
+                            f1 = np.matmul(np.conjugate(Evec[k].T),np.matmul(dHdmy,Evec[l]))
+                            f2 = np.matmul(np.conjugate(Evec[l].T),np.matmul(dHdny,Evec[k]))
 
-                            f3 = np.matmul(np.conjugate(Evec[k]),np.matmul(M1,Evec[l]))
-                            f4 = np.matmul(np.conjugate(Evec[l]),np.matmul(M2,Evec[k]))
+                            f3 = np.matmul(np.conjugate(Evec[k].T),np.matmul(M1,Evec[l]))
+                            f4 = np.matmul(np.conjugate(Evec[l].T),np.matmul(M2,Evec[k]))
 
                             sum+=pf*(f1*f2-f3*f4)
         
