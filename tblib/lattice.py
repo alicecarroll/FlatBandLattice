@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import numpy as np
 
 class Lattice:
     def __init__(self, sites):
@@ -16,22 +17,19 @@ class Lattice:
         self.map_sites = {i: site for i, site in enumerate(self.sites)}
         self.map_indices = {site: i for i, site in enumerate(self.sites)}
 
-    def plot_lattice(self, ax=None):
+    def plot_lattice(self, ax=None, field=None, cmap='viridis'):
         if ax is None: _, ax = plt.subplots()
         ax.set_aspect('equal')
         ax.set_xticks([])
         ax.set_yticks([])
-        for site in self.sites:
-            ax.scatter(site[0], site[1], c='k')
+        sites = np.array(self.sites)
+        if field is not None: assert len(field) == len(sites)
+        ax.scatter(*sites.T, c='k' if field is None else field, cmap=cmap, vmin=0, vmax=1)
         return ax
     
-    def plot_nn(self, ax=None):
-        if ax is None: _, ax = plt.subplots()
-        ax.set_aspect('equal')
-        ax.set_xticks([])
-        ax.set_yticks([])
-        for site in self.sites:
-            ax.scatter(site[0], site[1], c='k')
+    def plot_nn(self, ax=None, field=None):
+
+        ax = self.plot_lattice(ax=ax, field=field)
       
         for site in self.nn:
             for nn in self.nn[site]:
@@ -40,14 +38,14 @@ class Lattice:
                     if R == (0,0):
                         x = [site[0], nn[0]]
                         y = [site[1], nn[1]]
-                        ax.plot(x, y, c='blue')
+                        ax.plot(x, y, c='blue', zorder=-1)
                     else:
                         x1 = [site[0], site[0]+R[0]/2]
                         y1 = [site[1], site[1]+R[1]/2]
                         x2 = [nn[0], nn[0]-R[0]/2]
                         y2 = [nn[1], nn[1]-R[1]/2]
-                        ax.plot(x1, y1, c='blue')
-                        ax.plot(x2, y2, c='blue')
+                        ax.plot(x1, y1, c='blue', zorder=-1)
+                        ax.plot(x2, y2, c='blue', zorder=-1)
         return ax
 
 class SquareLattice(Lattice):
