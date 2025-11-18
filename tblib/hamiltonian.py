@@ -63,6 +63,7 @@ class Model:
         """Construct the k-space Hamiltonian function."""
 
         n=int(self.dim/4)
+        n2 = int(n/2)
 
         H = np.zeros((n, n), dtype=complex)        
 
@@ -80,13 +81,13 @@ class Model:
 
             for v in R:
                 if o==0:
-                    f+=-self.t*np.exp(-(0+1j)*(kx*(nn[0]-site[0])/self.N+ky*(nn[1]-site[1])/self.N))*np.exp((0+1j)*(kx*v[0]+ky*v[1]))
+                    f+=-self.t*np.exp((0+1j)*(kx*(nn[0]-site[0])/self.N+ky*(nn[1]-site[1])/self.N))*np.exp((0+1j)*(kx*v[0]+ky*v[1]))
                 elif o=='x':
-                    f+=-self.t*(-(0+1j)*(nn[0]-site[0])/self.N)*np.exp(-(0+1j)*(kx*(nn[0]-site[0])/self.N+ky*(nn[1]-site[1])/self.N))*np.exp((0+1j)*(kx*v[0]+ky*v[1]))
-                    f+=-self.t*(-(0+1j)*v[0])*np.exp(-(0+1j)*(kx*(nn[0]-site[0])/self.N+ky*(nn[1]-site[1])/self.N))*np.exp((0+1j)*(kx*v[0]+ky*v[1]))
+                    f+=-self.t*((0+1j)*(nn[0]-site[0])/self.N)*np.exp((0+1j)*(kx*(nn[0]-site[0])/self.N+ky*(nn[1]-site[1])/self.N))*np.exp((0+1j)*(kx*v[0]+ky*v[1]))
+                    f+=-self.t*((0+1j)*v[0])*np.exp((0+1j)*(kx*(nn[0]-site[0])/self.N+ky*(nn[1]-site[1])/self.N))*np.exp((0+1j)*(kx*v[0]+ky*v[1]))
                 elif o=='y':
-                    f+=-self.t*(-(0+1j)*(nn[1]-site[1])/self.N)*np.exp(-(0+1j)*(kx*(nn[0]-site[0])/self.N+ky*(nn[1]-site[1])/self.N))*np.exp((0+1j)*(kx*v[0]+ky*v[1]))
-                    f+=-self.t*(-(0+1j)*v[1])*np.exp(-(0+1j)*(kx*(nn[0]-site[0])/self.N+ky*(nn[1]-site[1])/self.N))*np.exp((0+1j)*(kx*v[0]+ky*v[1]))
+                    f+=-self.t*((0+1j)*(nn[1]-site[1])/self.N)*np.exp((0+1j)*(kx*(nn[0]-site[0])/self.N+ky*(nn[1]-site[1])/self.N))*np.exp((0+1j)*(kx*v[0]+ky*v[1]))
+                    f+=-self.t*((0+1j)*v[1])*np.exp((0+1j)*(kx*(nn[0]-site[0])/self.N+ky*(nn[1]-site[1])/self.N))*np.exp((0+1j)*(kx*v[0]+ky*v[1]))
             
             return f
         
@@ -115,7 +116,7 @@ class Model:
             
             #interaction according to AHM
             darr = np.zeros((2*n, 2*n), dtype=complex)  #order parameter
-            #ddarr = np.zeros_like(H, dtype=complex) # order parameter dagger
+
             for i in self.map_site:
                 if o==0:
                     site = self.map_site[i]
@@ -130,6 +131,7 @@ class Model:
 
             #hk[np.abs(hk) < eps] = 0
             A = np.zeros((self.dim,self.dim), dtype=complex)
+            B = np.zeros((2*n,2*n), dtype=complex)
             A[:n, :n] = hkp
             A[n:2*n, n:2*n] = hkp
             A[n*2:n*3, n*2:n*3]=hkh
@@ -138,7 +140,12 @@ class Model:
             A[:2*n, 2*n:] = darr
             A[2*n:, :2*n] = np.conjugate(darr.T)
 
-            return A, hkp
+            B[:n,:n] = A[:n,:n]
+            B[:n,n:] = A[:n,3*n:]
+            B[n:,:n] = A[3*n:, :n]
+            B[n:,n:] = A[3*n:, 3*n:]
+
+            return A, hkp, B
 
         return Hk
 
@@ -194,13 +201,15 @@ class Model:
         plt.show()
         return
 
-    def Es(self, k, p='part'):
+    def Es(self, p='part'):
         '''
         returns an array of the energies for each k-point in the BZ 
         for the normal state particle Hamiltonian (if p='part') or whole BdG-Hamiltonian (if p='all')
         Array should have dimension of (N_bands,N_kpoints**2)
         
         '''
+        k=np.linspace(-np.pi,np.pi, 100)
+
         l = np.shape(k)[0]
         a1 = np.ones(l)
         if p=='all':
@@ -346,9 +355,9 @@ class Model:
                 en=0
                 H = self.Hk(0,0)[0]
                 for i in range(int(self.dim/4)):
-                    en += -H[i,i]
+                    en += H[i,i]
 
-                mun = -1/(self.dim/4)*(self.U[0]/2*np.abs(self.nu-6)+en)
+                mun = 1/(self.dim/4)*(self.U[0]/2*(self.nu-6)+en)
 
                 muarr = np.array([mun for i in range(self.N)])           
                 muarr = alpha*muarro+(1-alpha)*muarr
@@ -367,7 +376,7 @@ class Model:
         
         nE=0
         if o==0:
-            if np.abs(E)<1e-14 and self.T!=0:
+            if np.abs(E)<1e-3 and self.T!=0:
                 nE = 1
             elif self.T==0:
                 if E>0:
@@ -377,9 +386,9 @@ class Model:
             else:
                 nE = 1/(1+np.exp(E/self.T))
         elif o==1:
-            if np.abs(E)<1e-14 and self.T!=0:
+            if np.abs(E)<1e-3 and self.T!=0:
                 nE = -1/(4*self.T)
-            elif np.abs(E)<1e-14 and self.T==0:
+            elif np.abs(E)<1e-3 and self.T==0:
                 nE = -1/4
             elif self.T==0:
                 nE = 0
@@ -388,19 +397,36 @@ class Model:
             
         return nE
     
-
+    
     def SFW(self, N, my='x', ny='x'):
 
-        gammaz = np.kron(np.diag([1,-1]), np.eye(int(self.dim/2)))
-        sum = 0
-        karr = np.linspace(-np.pi,np.pi,N)
+        gammaz = np.kron(np.diag([1,-1]), np.eye(int(self.dim/4)))
+        slist = []
+        s2list = []
+        pflist = []
+        parli = []
+        diali = []
+        summe = 0
+        alpha = 0.05
+        #karr = [-np.pi,-np.pi/2, 0, np.pi/2, np.pi]#
+        #gamma_shift = 0.5 / np.array(N)
+        #k = self.monkhorst_pack((N,N), shift=gamma_shift)
+        #karrx = np.array([kx[0] for kx in k])
+        #karry = np.array([ky[1] for ky in k])
+        #karr = np.concatenate(np.linspace(-np.pi+alpha,-alpha,N),np.linspace(alpha, np.pi,N))
+        karr = np.linspace(0, 2*np.pi, N)
 
         for kx in karr:
             for ky in karr:
-                H = self.Hk(kx,ky)[0]
-                dHdmy = self.Hk(kx,ky,o=my)[0]
-                dHdny = self.Hk(kx,ky,o=ny)[0]
+                
+                H = self.Hk(kx,ky)[2]
+                dHdmy = self.Hk(kx,ky,o=my)[2]
+                dHdny = self.Hk(kx,ky,o=ny)[2]
 
+                H[np.abs(H)<1e-14] =0
+                dHdmy[np.abs(dHdmy)<1e-14] =0
+                dHdny[np.abs(dHdny)<1e-14] =0
+                
                 M1 = np.matmul(dHdmy,gammaz)
                 M2 = np.matmul(dHdny,gammaz)
                 
@@ -411,23 +437,34 @@ class Model:
                 dnE = [self.fermidirac(E,o=1) for E in evals]
                 for k,i in enumerate(evals):
                     for l,j in enumerate(evals):
-                        if np.abs(i-j)<1e-10 or k==l:
+                        if np.abs(i-j)<1e-3 or k==l:
                             pf = -dnE[l]
                         else:
                             pf = (nE[l]-nE[k])/(i-j)
+                        #pflist.append(pf)
+                        #if pf==0:
+                        #    summe+=0
+                        #    s=0
+                        #    slist.append(s/N**2)
+                        #    s2list.append(s)
 
-                        if pf==0:
-                            sum+=0
-                        else:
-                            f1 = np.matmul(np.conjugate(Evec[k].T),np.matmul(dHdmy,Evec[l]))
-                            f2 = np.matmul(np.conjugate(Evec[l].T),np.matmul(dHdny,Evec[k]))
+                        #else:
+                        f1 = np.matmul(np.conjugate(Evec[k].T),np.matmul(dHdmy,Evec[l]))
+                        f2 = np.matmul(np.conjugate(Evec[l].T),np.matmul(dHdny,Evec[k]))
 
-                            f3 = np.matmul(np.conjugate(Evec[k].T),np.matmul(M1,Evec[l]))
-                            f4 = np.matmul(np.conjugate(Evec[l].T),np.matmul(M2,Evec[k]))
+                        f3 = np.matmul(np.conjugate(Evec[k].T),np.matmul(M1,Evec[l]))
+                        f4 = np.matmul(np.conjugate(Evec[l].T),np.matmul(M2,Evec[k]))
 
-                            sum+=pf*(f1*f2-f3*f4)
+                        s = pf*(f1*f2-f3*f4)
+                        summe+=s
+
+                        slist.append(s/N**2)
+                        s2list.append((f1*f2-f3*f4)/N**2)
+                        pflist.append(pf)
+                        diali.append(f1*f2)
+                        parli.append(f3*f4)
         
-        return sum/N**2
+        return summe/N**2#, diali, parli, pflist
     
     def detSFW(self, N):
         xx = self.SFW(N, my='x', ny='x')
@@ -435,5 +472,5 @@ class Model:
         yx = self.SFW(N, my='y', ny='x')
         yy = self.SFW(N, my='y', ny='y')
         ten = np.array([[xx,xy],[yx,yy]])
-        return ten,np.sqrt(np.linalg.det(ten))
+        return ten, np.sqrt(np.linalg.det(ten))
 
