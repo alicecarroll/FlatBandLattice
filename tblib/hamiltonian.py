@@ -12,9 +12,9 @@ class Model:
         self.nu = kwargs.get('nu', 0.0)
         self.kind = kwargs.get('kind', 'DSL')
         if self.kind == 'DSL':
-            self.dim = self.N**2*4
+            self.site_num = self.N**2
         elif self.kind == 'dDSL':
-            self.dim = (self.N**2-self.N+1)*4
+            self.site_num = (self.N**2-self.N+1)
 
         self.t = kwargs.get('t', 1.0)
 
@@ -60,14 +60,9 @@ class Model:
             
         
     def HBdG(self):
-        """Construct the k-space Hamiltonian function."""
+        """Construct the k-space Hamiltonian function."""       
 
-        n=int(self.dim/4)
-        n2 = int(n/2)
-
-        H = np.zeros((n, n), dtype=complex)        
-
-        def fact(i,j,kx,ky,o=0):
+        def fact(i,j,kx,ky,dnx=0, dny=0):
             '''
             returns the Hamiltonian entry for a hopping process from site j to i
 
@@ -80,23 +75,29 @@ class Model:
             f=0
 
             for v in R:
-                if o==0:
-                    f+=-self.t*np.exp((0+1j)*(kx*(nn[0]-site[0])/self.N+ky*(nn[1]-site[1])/self.N))*np.exp((0+1j)*(kx*v[0]+ky*v[1]))
-                elif o=='x':
-                    f+=-self.t*((0+1j)*(nn[0]-site[0])/self.N)*np.exp((0+1j)*(kx*(nn[0]-site[0])/self.N+ky*(nn[1]-site[1])/self.N))*np.exp((0+1j)*(kx*v[0]+ky*v[1]))
-                    f+=-self.t*((0+1j)*v[0])*np.exp((0+1j)*(kx*(nn[0]-site[0])/self.N+ky*(nn[1]-site[1])/self.N))*np.exp((0+1j)*(kx*v[0]+ky*v[1]))
-                elif o=='y':
-                    f+=-self.t*((0+1j)*(nn[1]-site[1])/self.N)*np.exp((0+1j)*(kx*(nn[0]-site[0])/self.N+ky*(nn[1]-site[1])/self.N))*np.exp((0+1j)*(kx*v[0]+ky*v[1]))
-                    f+=-self.t*((0+1j)*v[1])*np.exp((0+1j)*(kx*(nn[0]-site[0])/self.N+ky*(nn[1]-site[1])/self.N))*np.exp((0+1j)*(kx*v[0]+ky*v[1]))
-            
+                sublattice_f = np.exp((0+1j)*(kx*(nn[0]-site[0])/self.N+ky*(nn[1]-site[1])/self.N))
+                uc_f = np.exp((0+1j)*(kx*v[0]+ky*v[1]))
+
+                if dnx == 0 and dny ==0:
+                    f+=-self.t*sublattice_f*uc_f
+                else:
+                    dx_sublattice_f = (0+1j)*(nn[0]-site[0])/self.N
+                    dy_sublattice_f = (0+1j)*(nn[1]-site[1])/self.N
+
+                    dx_uc_f = (0+1j)*v[0]
+                    dy_uc_f = (0+1j)*v[1]
+
+                    f+=-self.t*(dx_sublattice_f)**dnx*(dy_sublattice_f)**dny*sublattice_f*uc_f # f'(sublattice)*g(uc)
+                    f+=-self.t*(dx_uc_f)**dnx*(dy_uc_f)**dny*sublattice_f*uc_f # f(sublattice)*g'(uc)
+                
             return f
         
-        
-
-
-        def Hk(kx, ky, o=0): 
+        def H_variety(kx, ky, dnx=0, dny=0):
             """Evaluate the Hamiltonian at given kx, ky."""
             deltas, mus, nss, Us = self.striped_props()
+
+            n=int(self.site_num)
+            H = np.zeros((n, n), dtype=complex) 
 
             hkp = np.zeros_like(H, dtype=complex) #normal state hamiltonian particles
             hkh = np.zeros_like(H, dtype=complex) #normal state hamiltonian holes
@@ -106,47 +107,52 @@ class Model:
                 for nn in self.lat.nn[site]:
                     j=self.map_idx[site]
                     i=self.map_idx[nn]
-                    hkp[i,j] = fact(i,j,kx, ky,o)
-                    hkh[i,j] = -np.conjugate(fact(i,j,-kx, -ky,o))
+                    hkp[i,j] = fact(i,j,kx, ky,dnx, dny)
+                    hkh[i,j] = -np.conjugate(fact(i,j,-kx, -ky,dnx, dny))
 
             for i in self.map_site:
-                if o ==0: 
+                if dnx==0 and dny==0: 
                     hkp[i,i] = -mus[i]-Us[i]/2*nss[i]
                     hkh[i,i] = mus[i]+Us[i]/2*nss[i]
             
             #interaction according to AHM
-            darr = np.zeros((2*n, 2*n), dtype=complex)  #order parameter
-
+            HDk = np.zeros((n, n), dtype=complex)  #order parameter
+            
             for i in self.map_site:
-                if o==0:
+                if dnx==0 and dny==0:
                     site = self.map_site[i]
                     delta = deltas[i]
-                    #if Us[i]==0:
-                    #    darr[i,n+i] = 0
-                    #    darr[n+i,i] = 0
-                    #else:
-                    darr[i,n+i] = np.abs(Us[i])*delta
-                    darr[n+i,i] = -np.abs(Us[i])*delta
+                    
+                    HDk[i,i] = np.abs(Us[i])*delta
                     
 
-            #hk[np.abs(hk) < eps] = 0
-            A = np.zeros((self.dim,self.dim), dtype=complex)
-            B = np.zeros((2*n,2*n), dtype=complex)
-            A[:n, :n] = hkp
-            A[n:2*n, n:2*n] = hkp
-            A[n*2:n*3, n*2:n*3]=hkh
-            A[n*3:, n*3:]=hkh
+            H0k_spinfull = np.block([[hkp, np.zeros_like(hkp)],
+                                     [np.zeros_like(hkp), hkp]])
+            H0kh_spinfull = np.block([[hkh, np.zeros_like(hkh)],
+                                     [np.zeros_like(hkh), hkh]])
+            HDk_spinfull = np.block([[np.zeros_like(HDk), HDk],
+                                     [-HDk, np.zeros_like(HDk)]])
+            
+            HBdGk = np.block([[H0k_spinfull, HDk_spinfull],
+                             [np.conjugate(HDk_spinfull.T), H0kh_spinfull]])
+            
+            HBdGk_up = np.block([[hkp, HDk],
+                                 [np.conjugate(HDk.T),hkh]])
+            
 
-            A[:2*n, 2*n:] = darr
-            A[2*n:, :2*n] = np.conjugate(darr.T)
+            return HBdGk, HBdGk_up, hkp
 
-            B[:n,:n] = A[:n,:n]
-            B[:n,n:] = A[:n,3*n:]
-            B[n:,:n] = A[3*n:, :n]
-            B[n:,n:] = A[3*n:, 3*n:]
 
-            return A, hkp, B
+        def Hk(kx, ky, reduce=False, dnx=0, dny=0): 
 
+            if not reduce:
+                HBdGk = H_variety(kx, ky, dnx, dny)[0] #get full spin hamiltonian
+            else:
+                HBdGk = H_variety(kx, ky, dnx, dny)[1] #get only spin up BdG hamiltonian
+
+
+            return HBdGk
+            
         return Hk
 
     def solvHam(self, kx, ky, p='all'):
@@ -154,54 +160,23 @@ class Model:
             solves hamiltonian for each pair of coordinates
             '''
 
-            eps = 1e-15
             n = np.shape(kx)[0]
             if p=='all':
-                eig = np.zeros((n, self.dim))
+                eig = np.zeros((n, self.site_num*4))
             elif p=='part':
-                eig = np.zeros((n, int(self.dim/4)))
+                eig = np.zeros((n, int(self.site_num)))
 
         
             for i in range(n):
                 if p == 'all':
-                    e = np.linalg.eigvalsh(self.Hk(kx[i], ky[i])[0]) #solves full BdG-Hamiltonian
+                    e = np.linalg.eigvalsh(self.Hk(kx[i], ky[i])) #solves full BdG-Hamiltonian
                 elif p == 'part':
-                    e = np.linalg.eigvalsh(self.Hk(kx[i], ky[i])[1]) #solves only particle Hamiltonian
-                #e[np.abs(e)<eps]=0
+                    e = np.linalg.eigvalsh(self.Hk(kx[i], ky[i])[:self.site_num, :self.site_num]) #solves only particle Hamiltonian
                 eig[i]=np.sort(e)
                 
             return eig.T
-    
-    def plot_bands(self, p='all'):
 
-        k=np.linspace(0,np.pi, 100)
-        k1 = np.ones(100)
-        k0 = np.zeros(100)
-        path = np.concatenate((k, k, k*np.sqrt(2)))
-        kx = np.concatenate((k,k[-1]*k1, k[::-1]))
-        ky = np.concatenate((k0, k, k[::-1]))
-
-        pl = [i for i in range(np.shape(path)[0])]
-        
-        energies = self.solvHam(kx, ky, p)
-
-        emax = np.amax(energies)
-        emax = emax+0.1*emax
-
-        plt.figure(figsize=(8,6))
-        plt.xlabel("$(k_x a,k_y a)$", size='x-large')
-        plt.ylabel("E", size='x-large')
-        plt.yticks(size='x-large')
-        plt.xticks(ticks= [0, 100, 200, 299], labels=[r"$\Gamma$",r"X",r"M", r"$\Gamma$"], size='x-large')
-
-        for i in energies:
-            plt.plot(pl, i, color='black')
-
-        plt.vlines([0, 99, 199, 299], [-emax, -emax, -emax, -emax], [emax, emax, emax, emax], colors= 'grey', linestyles='--')
-        plt.show()
-        return
-
-    def Es(self, p='part'):
+    def Es(self, p='all'):
         '''
         returns an array of the energies for each k-point in the BZ 
         for the normal state particle Hamiltonian (if p='part') or whole BdG-Hamiltonian (if p='all')
@@ -213,18 +188,16 @@ class Model:
         l = np.shape(k)[0]
         a1 = np.ones(l)
         if p=='all':
-            E=np.empty((self.dim, l))
+            E=np.empty((self.site_num*4, l))
         elif p=='part':
-            E=np.empty((int(self.dim/4), l))
+            E=np.empty((int(self.site_num), l))
         eps = 1e-15
 
         for i in k:
-            Erow = self.solvHam(i*a1, k, p)
+            Erow = self.solvHam(i*a1, k,p)
             E = np.concatenate((E, Erow), axis=1)
             E[np.abs(E)<eps]=0
         return E
-    
-    
     
     def DOS(self, N, E, b=0, sig=5e-2, p='part'):
         ''' 
@@ -251,132 +224,12 @@ class Model:
             s1=0
             c+=1
         return res
-    
-    def DeltaN(self, N, HF):
-            Us = self.striped_props()[3]
-
-            karr = np.linspace(-np.pi, np.pi, N)
-            a = int(self.dim/2)            
-
-            Delta=np.zeros((a,a), dtype=object)
-            Nu=np.zeros((a,a), dtype=object)
-
-            c=0
-            for x in karr:
-                for y in karr:
-                    c+=1
-
-                    evals1, Evec = np.linalg.eigh(self.Hk(x, y)[0])
-                    Evec = Evec.T
-
-                    evals = np.flip(evals1)[0:a]
-
-                    vbar = Evec[:6, 0:6] #this is conjugate(v-k)
-                    ubar = Evec[:6, 6:]  #this is conjugate(u-k)
-
-                    Evec2 = np.flip(Evec, axis=0)
-                    u = Evec2[0:6, 0:6]
-                    v = Evec2[0:6, 6:]
-                    
-                    if self.T==0:
-                        el=np.matmul(ubar.T,np.conjugate(vbar))
-                        Delta+=el
-                        if HF:
-                            nu_el = np.matmul(vbar.T, np.conjugate(vbar))
-                            Nu+=nu_el
-
-                    else:
-                        el=np.matmul(np.conjugate(u.T),np.matmul(np.diag(1/(1+np.exp(-evals/self.T))), v))+np.matmul(v.T,np.matmul(np.diag(1/(1+np.exp(evals/self.T))),np.conjugate(u)))
-                        Delta+=el
-                        if HF:
-                            nu_el = np.matmul(np.conjugate(v.T),np.matmul(np.diag(1/(1+np.exp(-evals/self.T))), v))+np.matmul(u.T,np.matmul(1/(1+np.exp(evals/self.T)), np.conjugate(u)))
-                            Nu+=nu_el
-                    if np.isnan(el.any()):
-                        print(x, y, ': \n', el)
-                        print('u\n', u)
-                        print('evals\n', evals)          
-            
-            finNu = np.diag(Nu)/N**2
-            nu = [finNu[i]+finNu[int(i+a/2)] for i in range(int(a/2))]
-            delta = [-Delta[int(i+a/2),i]/N**2 for i in range(int(a/2))]
-
-            delta2 = [delta[self.map_idx[(i,0)]] for i in range(self.N)]
-            nu2 = [nu[self.map_idx[(i,0)]] for i in range(self.N)]
-
-            return delta2,nu2
-        
-    def Deltra(self, N, g=0.0001, HF=False, Nmax=50, Nmin=10, alpha=0.5):
-        
-        delarr = np.array(self.delta)
-        narr = np.array(self.ns)
-
-        dels = delarr.reshape(self.N,1)
-        ns = narr.reshape(self.N,1)
-
-        muarr = np.array(self.mu)
-        mus = muarr.reshape(self.N,1)
-
-        l1 = (np.std(np.abs(dels[:,-3:]), axis=1)>g).any()
-        l2 = (np.std(np.abs(ns[:,-3:]), axis=1)>g).any()
-
-        c=0
-        while (c<Nmax and (l1 or l2)) or c<Nmin:
-            c+=1
-
-            Vals = self.DeltaN(N, HF)
-
-            delarro = delarr
-            narro = narr
-
-            delta = Vals[0]
-
-            delarr = np.array(delta)
-            delarr = alpha*delarro+(1-alpha)*delarr
-
-            self.delta = delarr
-
-            if HF:
-                nv = Vals[1]
-                
-                narr = np.array(nv)
-                narr = alpha*narro+(1-alpha)*narr
-
-                self.ns = narr
-
-            dels = np.concatenate((dels, delarr.reshape(self.N,1)), axis=1)
-            ns = np.concatenate((ns, narr.reshape(self.N,1)), axis=1)
-
-            l1 = (np.std(np.abs(dels[:,-3:]), axis=1)>g).any()
-            l2 = (np.std(np.abs(ns[:,-3:]), axis=1)>g).any()
-
-            if self.nu!=0:
-            
-                muarro = muarr
-                en=0
-                H = self.Hk(0,0)[0]
-                for i in range(int(self.dim/4)):
-                    en += H[i,i]
-
-                mun = 1/(self.dim/4)*(self.U[0]/2*(self.nu-6)+en)
-
-                muarr = np.array([mun for i in range(self.N)])           
-                muarr = alpha*muarro+(1-alpha)*muarr
-
-                self.mu = muarr
-            mus = np.concatenate((mus, muarr.reshape(self.N,1)), axis=1)
-                
-                #l1 = (np.std(np.abs(mus[:,-3:]), axis=1)>g).any()
-            
-        return dels, ns, mus
-        
-
-
-
+       
     def fermidirac(self,E,o=0):
         
         nE=0
         if o==0:
-            if np.abs(E)<1e-3 and self.T!=0:
+            if np.abs(E)<1e-6 and self.T!=0:
                 nE = 1
             elif self.T==0:
                 if E>0:
@@ -386,9 +239,9 @@ class Model:
             else:
                 nE = 1/(1+np.exp(E/self.T))
         elif o==1:
-            if np.abs(E)<1e-3 and self.T!=0:
+            if np.abs(E)<1e-6 and self.T!=0:
                 nE = -1/(4*self.T)
-            elif np.abs(E)<1e-3 and self.T==0:
+            elif np.abs(E)<1e-6 and self.T==0:
                 nE = -1/4
             elif self.T==0:
                 nE = 0
@@ -400,25 +253,21 @@ class Model:
     
     def SFW(self, N, my='x', ny='x'):
 
-        gammaz = np.kron(np.diag([1,-1]), np.eye(int(self.dim/4)))
-        slist = []
-        s2list = []
-        pflist = []
-        parli = []
-        diali = []
+        gammaz = np.kron(np.diag([1,-1]), np.eye(int(self.site_num*4)))
+        
+        term_array = np.zeros((N**2, 3,int((self.site_num*2)**2)))
+
         summe = 0
-        alpha = 0.05
-        #karr = [-np.pi,-np.pi/2, 0, np.pi/2, np.pi]#
-        #gamma_shift = 0.5 / np.array(N)
-        #k = self.monkhorst_pack((N,N), shift=gamma_shift)
-        #karrx = np.array([kx[0] for kx in k])
-        #karry = np.array([ky[1] for ky in k])
-        #karr = np.concatenate(np.linspace(-np.pi+alpha,-alpha,N),np.linspace(alpha, np.pi,N))
-        karr = np.linspace(0, 2*np.pi, N)
+        
+        karr = np.linspace(0, 2*np.pi, N, endpoint=False)
+        counter =0
 
         for kx in karr:
             for ky in karr:
-                
+                pflist = []
+                parli = []
+                diali = []
+
                 H = self.Hk(kx,ky)[2]
                 dHdmy = self.Hk(kx,ky,o=my)[2]
                 dHdny = self.Hk(kx,ky,o=ny)[2]
@@ -437,40 +286,41 @@ class Model:
                 dnE = [self.fermidirac(E,o=1) for E in evals]
                 for k,i in enumerate(evals):
                     for l,j in enumerate(evals):
-                        if np.abs(i-j)<1e-3 or k==l:
+                        if np.abs(i-j)<1e-6 or k==l:
                             pf = -dnE[l]
                         else:
                             pf = (nE[l]-nE[k])/(i-j)
-                        #pflist.append(pf)
-                        #if pf==0:
-                        #    summe+=0
-                        #    s=0
-                        #    slist.append(s/N**2)
-                        #    s2list.append(s)
 
-                        #else:
-                        f1 = np.matmul(np.conjugate(Evec[k].T),np.matmul(dHdmy,Evec[l]))
-                        f2 = np.matmul(np.conjugate(Evec[l].T),np.matmul(dHdny,Evec[k]))
+                        if pf==0:
+                            summe+=0
+                            f1, f2, f3, f4 = (0,0,0,0)
 
-                        f3 = np.matmul(np.conjugate(Evec[k].T),np.matmul(M1,Evec[l]))
-                        f4 = np.matmul(np.conjugate(Evec[l].T),np.matmul(M2,Evec[k]))
+                        else:
+                            f1 = np.matmul(np.conjugate(Evec[k].T),np.matmul(dHdmy,Evec[l]))
+                            f2 = np.matmul(np.conjugate(Evec[l].T),np.matmul(dHdny,Evec[k]))
 
-                        s = pf*(f1*f2-f3*f4)
-                        summe+=s
+                            f3 = np.matmul(np.conjugate(Evec[k].T),np.matmul(M1,Evec[l]))
+                            f4 = np.matmul(np.conjugate(Evec[l].T),np.matmul(M2,Evec[k]))
 
-                        slist.append(s/N**2)
-                        s2list.append((f1*f2-f3*f4)/N**2)
-                        pflist.append(pf)
-                        diali.append(f1*f2)
-                        parli.append(f3*f4)
+                            s = pf*(f1*f2-f3*f4)
+
+                            summe+=s
+
+                        pflist.append(pf/N)
+                        diali.append(f1*f2/N)
+                        parli.append(f3*f4/N)
+                    
+                term_array[counter]= np.array([pflist, diali, parli])
+
+                counter +=1
         
-        return summe/N**2#, diali, parli, pflist
+        return summe/N**2, term_array
     
     def detSFW(self, N):
-        xx = self.SFW(N, my='x', ny='x')
-        xy = self.SFW(N, my='x', ny='y')
-        yx = self.SFW(N, my='y', ny='x')
-        yy = self.SFW(N, my='y', ny='y')
+        xx = self.SFW(N, my='x', ny='x')[0]
+        xy = self.SFW(N, my='x', ny='y')[0]
+        yx = self.SFW(N, my='y', ny='x')[0]
+        yy = self.SFW(N, my='y', ny='y')[0]
         ten = np.array([[xx,xy],[yx,yy]])
         return ten, np.sqrt(np.linalg.det(ten))
 
