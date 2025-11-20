@@ -47,6 +47,9 @@ class Lattice:
                         ax.plot(x1, y1, c='blue', zorder=-1)
                         ax.plot(x2, y2, c='blue', zorder=-1)
         return ax
+    
+    @property
+    def nsites(self): return len(self.sites)
 
 class SquareLattice(Lattice):
     def __init__(self):

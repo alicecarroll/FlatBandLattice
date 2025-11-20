@@ -3,50 +3,6 @@ from .fermi import fermi_dirac, fermi_dirac_prime
 
 # Partially refactored: need check expressions and test
 
-def cooper(u, v, uk, vk, evals, T=.0):
-    if np.abs(T) < 1e-10: return np.matmul(np.conjugate(v.T), v)
-    res = np.matmul(np.conjugate(u.T),np.matmul(np.diag(1/(1+np.exp(-evals/T))), v))
-    res += np.matmul(vk.T,np.matmul(np.diag(1/(1+np.exp(evals/T))),np.conjugate(uk)))
-    return res
-
-def hartree(v, uk, evals, T=.0):
-    if np.abs(T) < 1e-10: return np.matmul(np.conjugate(v.T), v)
-    res = np.matmul(np.conjugate(v.T),np.matmul(np.diag(1/(1+np.exp(-evals/T))), v))
-    res += np.matmul(uk.T,np.matmul(1/(1+np.exp(evals/T)), np.conjugate(uk)))
-    return res
-
-def get_mean_fields(model, k_grid, HF_Q=True, T=.0):
-    """Compute Cooper and Hartree mean-field channels once."""
-
-    sdim = int( 2 * model.n ) # Single-particle dimension
-    PairingMatrix = np.zeros((sdim,sdim), dtype=complex)
-    OccupationMatrix = np.zeros((sdim,sdim), dtype=complex)
-
-    # Get updated Hamiltonian
-    HBdG = model.get_HBdG()
-
-    nk = len(k_grid)
-    for kx, ky in k_grid:
-        evals, evecs = np.linalg.eigh(HBdG(kx, ky))
-
-        upk = evecs[sdim:, :sdim]
-        vpk = evecs[:sdim, :sdim]
-        vmk = evecs[sdim:, sdim:]
-        umk = evecs[:sdim, sdim:]
-
-        PairingMatrix += cooper(umk, vmk, upk, vpk, evals, T=.0)
-        if HF_Q: OccupationMatrix += hartree(vmk, upk, evals, T=.0)
-        
-    OccArr = np.diag(OccupationMatrix) / nk
-    Delta = [-np.abs(model.U[i]) / nk * PairingMatrix[i,int(i+sdim/2)] for i in range(int(a/2))]
-    Nu = [OccArr[i]+OccArr[int(i+sdim/2)] for i in range(int(sdim/2))]
-
-    Delta = np.array([Delta[model.lat.map_idx[(i,0)]] for i in range(model.lat.N)])
-    Nu = np.array([Nu[model.lat.map_idx[(i,0)]] for i in range(model.lat.N)])
-
-    return Delta, Nu
-
-
 # Not refactored yet   
 def Deltra(model, N, T=0, g=0.01, HF=False, Nmax=20, Nmin=10, alpha=0.5):
     

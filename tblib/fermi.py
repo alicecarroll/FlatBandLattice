@@ -12,9 +12,9 @@ def fermi_dirac(energy, temperature, tol=1e-10):
         T = T[None, :]
 
     T_zero = np.abs(T) < tol
-    x = E / T
 
     with np.errstate(over='ignore', divide='ignore', invalid='ignore'):
+        x = E / T
         f = np.where(x > 0,
             np.exp(-x) / (1 + np.exp(-x)),
             1 / (1 + np.exp(x)) )

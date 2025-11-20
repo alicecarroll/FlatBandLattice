@@ -1,14 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
-
-
-hsp_dict = {
-    'G': (0, 0),
-    'X': (np.pi, 0),
-    'M': (np.pi, np.pi),
-    'Y': (0, np.pi),
-    'H': (2*np.pi, 0)
-}
+from .geometry import get_k_grid, get_k_path
+from .meanfield import get_mean_fields
 
 hsp_labels = {
     'G': '$\\Gamma$',
@@ -17,30 +10,6 @@ hsp_labels = {
     'Y': '$Y$',
     'H': '$\\Gamma^\\prime$'
 }
-
-def get_k_path(nk, hsp_path):
-    k_distances = []
-    for i, hsp in enumerate(hsp_path[:-1]):
-        k_start = np.array(hsp_dict[hsp])
-        k_end = np.array(hsp_dict[hsp_path[i+1]])
-        k_distances.append(np.linalg.norm(k_end - k_start))
-    
-
-    total_distance = sum(k_distances)
-    segment_lengths = [int(nk * (d / total_distance)) for d in k_distances]
-
-    k_path = []
-    for i, hsp in enumerate(hsp_path[:-1]):
-        k_start = np.array(hsp_dict[hsp])
-        k_end = np.array(hsp_dict[hsp_path[i+1]])
-        segment_length = segment_lengths[i]
-        k_segment = np.linspace(k_start, k_end, segment_length, endpoint=False)
-        k_path.extend(k_segment)
-    k_path.append(hsp_dict[hsp_path[-1]])
-
-    hsp_indices = np.cumsum([0] + segment_lengths)
-
-    return np.array(k_path), hsp_indices
 
 
 def plot_bands(H, nk=200, hsp_path='GXM', ax=None, **kwargs):
@@ -76,13 +45,7 @@ def plot_DOS(H, s=(1,1), elim=(-1, 1), ne=200, nk=40, sig=5e-2, ax=None, **kwarg
     dos = np.zeros(ne)
     e_array = np.linspace(elim[0], elim[1], ne)
 
-    k_lin = np.linspace(0, 2*np.pi, nk, endpoint=False)
-    kx, ky = np.meshgrid(k_lin, k_lin)
-
-    kx /= s[0]
-    ky /= s[1]
-
-    k_points = np.column_stack((kx.flatten(), ky.flatten()))
+    k_points = get_k_grid(nk, s=s)
 
     spectrum = np.empty((k_points.shape[0], H(0,0).shape[0]))
 
@@ -109,13 +72,29 @@ def plot_DOS(H, s=(1,1), elim=(-1, 1), ne=200, nk=40, sig=5e-2, ax=None, **kwarg
 
     return ax
 
+def plot_mean_fields(model, pvals, pname, s=(1,1), nk=40, ax=None, kBT=.0):
+
+    hvals, cvals = np.zeros_like(pvals), np.zeros_like(pvals)
+    k_grid = get_k_grid(nk, s=s)
+    for i, p in enumerate(pvals):
+        pvec = p * np.ones(model.nsites)
+        setattr(model, pname, pvec)
+        h, c = get_mean_fields(model, k_grid, kBT=kBT)
+        hvals[i] = np.real( np.trace(h) )
+        cvals[i] = np.real( np.trace(np.matmul(np.conjugate(c.T),c)) )
+
+    if ax is None: _, ax = plt.subplots(figsize=(6,6))
+    ax.plot(pvals, hvals, c='r')
+    ax.plot(pvals, cvals, c='b')
+
+    return ax
 
 
 ## temp
 
     # def solvHam(self, kx, ky, p='all'):
     #         '''
-    #         solves hamiltonian for each pair of coordinates
+    #         solves model for each pair of coordinates
     #         '''
 
     #         eps = 1e-15
