@@ -1,21 +1,27 @@
 import matplotlib.pyplot as plt
 import numpy as np
+from .geometry import get_reciprocal_vectors
 
 class Lattice:
-    def __init__(self, sites):
+    def __init__(self, sites, latvecs):
         
         self.sites = list(set({tuple(s) for s in sites}))
         self.nn = {site: {} for site in self.sites}
         self.nn_dir = {site: {} for site in self.sites} # For later
 
-        self.map_sites = {i: site for i, site in enumerate(self.sites)}
-        self.map_indices = {site: i for i, site in enumerate(self.sites)}
+        # Lattice vectors
+        self.a1 = latvecs[0]
+        self.a2 = latvecs[1]
+        self.lattice_vecs = np.stack(latvecs)
+        self.reciprocal_vecs = np.stack(get_reciprocal_vectors(latvecs))
 
-        self.mapback = lambda s: s # Default: identity mapping
-
-    def update_maps(self):
-        self.map_sites = {i: site for i, site in enumerate(self.sites)}
-        self.map_indices = {site: i for i, site in enumerate(self.sites)}
+    @property
+    def map_sites(self):
+        return {i: site for i, site in enumerate(self.sites)}
+    
+    @property
+    def map_indices(self):
+        return {site: i for i, site in enumerate(self.sites)}
 
     def plot_lattice(self, ax=None, field=None, cmap='viridis'):
         if ax is None: _, ax = plt.subplots()
@@ -25,6 +31,23 @@ class Lattice:
         sites = np.array(self.sites)
         if field is not None: assert len(field) == len(sites)
         ax.scatter(*sites.T, c='k' if field is None else field, cmap=cmap, vmin=0, vmax=1)
+
+        x0 = (-0.5, -0.5)
+        ax.annotate('', x0, tuple(np.add(x0, self.a1)), 
+                    va='center', ha='left', arrowprops=dict(arrowstyle='<|-'))
+        ax.annotate('', x0, tuple(np.add(x0, self.a2)), 
+                    va='bottom', ha='center', arrowprops=dict(arrowstyle='<|-'))
+        # ax.annotate('$\\mathbf{a}_1$', x0, va='bottom', ha='right')
+        # ax.annotate('$\\mathbf{a}_2$', x0, va='top', ha='left')
+        
+        # from matplotlib.patches import FancyArrow
+        
+        # arrow1 = FancyArrow(*x0, *self.a1, color='k', width=.1, length_includes_head=True)
+        # arrow2 = FancyArrow(*x0, *self.a2, color='k', width=.1, length_includes_head=True)
+        
+        # ax.add_patch(arrow1)
+        # ax.add_patch(arrow2)
+    
         return ax
     
     def plot_nn(self, ax=None, field=None):
@@ -51,14 +74,6 @@ class Lattice:
     @property
     def nsites(self): return len(self.sites)
 
-class SquareLattice(Lattice):
-    def __init__(self):
-        sites = {(0, 0)}
-        super().__init__(sites)
-        
-        self.nn[(0, 0)] = {(0, 0): [(1, 0), (0, 1), (-1, 0), (0, -1)]}
-        self.update_maps()
-
 def _init_square_base(self):
 
     nn_templates = [(1,0), (0,1), (-1,0), (0,-1)]
@@ -76,27 +91,26 @@ def _init_square_base(self):
                 else: 
                     self.nn[site][(nxf, nyf)] = [(Rxf, Ryf),]
 
-    # Use the raw displacement between sites (no modulo) so that forward and reverse
-    # hops are exact negatives of each other. This ensures k-space phases are
-    # complex conjugates and the Hamiltonian remains Hermitian.
-    self.mapback = lambda s: s
-    
-    self.update_maps()
+class SquareLattice(Lattice):
+    def __init__(self, N=1):
 
-def _init_DSL_base(self):
+        self.N = N
+        sites = [(nx, ny) for nx in range(self.N) for ny in range(self.N)]
+        a1, a2 = (N, 0), (0, N)
 
-    _init_square_base(self)
-    setattr(self, 'map_diag', 
-        {self.map_indices[site]: (site[0]+site[1])%self.N for site in self.sites})
+        super().__init__(sites, (a1, a2))
+        _init_square_base(self)
 
 class DiagonallyStripedLattice(Lattice):
     def __init__(self, N=1):
 
         self.N = N
         sites = [(nx, ny) for nx in range(self.N) for ny in range(self.N)]
+
+        a1, a2 = (N, 0), (0, N)
         
-        super().__init__(sites)
-        _init_DSL_base(self)
+        super().__init__(sites, (a1, a2))
+        _init_square_base(self)
 
 class dDiagonallyStripedLattice(Lattice):
     def __init__(self, N=1):
@@ -104,8 +118,10 @@ class dDiagonallyStripedLattice(Lattice):
         self.N = N
         sites = [(nx, ny) for nx in range(self.N) for ny in range(self.N) if (nx!=ny or nx==0)]
 
-        super().__init__(sites)
-        _init_DSL_base(self)
+        a1, a2 = (N, 0), (0, N)
+
+        super().__init__(sites, (a1, a2))
+        _init_square_base(self)
 
 class LiebNLattice(Lattice):
     def __init__(self, N=1):
@@ -114,6 +130,8 @@ class LiebNLattice(Lattice):
         sites = [(0, n) for n in range(self.N)]
         sites += [(n, 0) for n in range(1, self.N)]
 
-        super().__init__(sites)
+        a1, a2 = (N, 0), (0, N)
+
+        super().__init__(sites, (a1, a2))
 
         _init_square_base(self)
