@@ -33,7 +33,7 @@ def SFW(model, nk, my= (1,0), ny=(1,0)):
     
     term_array = np.zeros((nk**2, 3,int((model.site_num*2)**2)))
     
-    karr = np.linspace(0, 2*np.pi, nk, endpoint=False)
+    karr = np.linspace(0,2*np.pi, nk, endpoint=False)
     summe = 0
     counter =0
 
@@ -46,10 +46,6 @@ def SFW(model, nk, my= (1,0), ny=(1,0)):
             H = model.Hk(kx,ky, reduce=True)
             dHdmy = model.Hk(kx,ky, reduce=True, dnx=my[0], dny=my[1])
             dHdny = model.Hk(kx,ky, reduce=True, dnx=ny[0], dny=ny[1])
-
-            H[np.abs(H)<1e-14] =0
-            dHdmy[np.abs(dHdmy)<1e-14] =0
-            dHdny[np.abs(dHdny)<1e-14] =0
             
             M1 = np.matmul(dHdmy,gammaz)
             M2 = np.matmul(dHdny,gammaz)

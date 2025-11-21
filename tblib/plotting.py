@@ -54,10 +54,14 @@ def plot_bands(H, nk=200, hsp_path='GXMG', ax=None, **kwargs):
     n = len(k_path)
     Hk = H(k_path[0][0], k_path[0][0])
     energies = np.zeros((n, Hk.shape[0]))
+
     for i in range(n):
         energies[i] = np.linalg.eigvalsh(H(*k_path[i]))
+    ylimit = np.amax(energies)*1.1
+
 
     if ax is None: _, ax = plt.subplots(figsize=(8,6))
+
     for band in energies.T:
         ax.plot(range(n), band, color='black')
         
@@ -66,6 +70,8 @@ def plot_bands(H, nk=200, hsp_path='GXMG', ax=None, **kwargs):
     if ylabel: ax.set_ylabel(ylabel, size='x-large')
     ax.set_xticks(ticks=hsp_indices, labels=[hsp_labels[hsp] for hsp in hsp_path])
     ax.tick_params(labelsize='x-large')
+    ax.set_ylim(-ylimit, ylimit) 
+
     for i in hsp_indices:
         ax.axvline(i, c= 'grey', ls='--')
 
@@ -90,6 +96,8 @@ def plot_DOS(H, s=(1,1), elim=(-1, 1), ne=200, nk=40, sig=5e-2, ax=None, **kwarg
         eigenvalues = np.linalg.eigvalsh(H(*kp))
         spectrum[idx, :] = eigenvalues
 
+    ylimit = np.amax(eigenvalues)*1.1
+
     def Gaussian(E, En, sig):
         return np.exp(-(E-En)**2/(2*sig**2)) / np.sqrt(2*np.pi*sig**2)
     
@@ -101,6 +109,7 @@ def plot_DOS(H, s=(1,1), elim=(-1, 1), ne=200, nk=40, sig=5e-2, ax=None, **kwarg
 
     ylabel = kwargs.get('ylabel', 'Energy (t)')
     xlabel = kwargs.get('xlabel', 'DOS')
+    ax.set_ylim(-ylimit, ylimit) 
 
     ax.plot(dos, e_array, color='black')
     if xlabel: ax.set_xlabel(xlabel, size='x-large')

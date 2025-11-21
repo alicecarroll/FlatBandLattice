@@ -8,16 +8,16 @@ class Lattice:
         self.nn_dir = {site: {} for site in self.sites} # For later
 
     def plot_lattice(self, ax=None):
-        if ax is None: fig, ax = plt.subplots()
+        if ax is None: _, ax = plt.subplots()
         ax.set_aspect('equal')
         ax.set_xticks([])
         ax.set_yticks([])
         for site in self.sites:
             ax.scatter(site[0], site[1], c='k')
-        return fig, ax
+        return ax
     
     def plot_nn(self, ax=None):
-        if ax is None: fig, ax = plt.subplots()
+        if ax is None: _, ax = plt.subplots()
         ax.set_aspect('equal')
         ax.set_xticks([])
         ax.set_yticks([])
@@ -39,7 +39,7 @@ class Lattice:
                         y2 = [nn[1], nn[1]-R[1]/2]
                         ax.plot(x1, y1, c='blue')
                         ax.plot(x2, y2, c='blue')
-        return fig, ax
+        return ax
 
 
 class SquareLattice(Lattice):
