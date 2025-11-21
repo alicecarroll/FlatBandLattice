@@ -5,15 +5,15 @@ def cooper(u,v,ubar,vbar,evals,T=0):
         return np.matmul(ubar.T,np.conjugate(vbar))
         
     else:
-        el=np.matmul(np.conjugate(u.T),np.matmul(np.diag(1/(1+np.exp(-evals/T))), v))
-        el+=np.matmul(v.T,np.matmul(np.diag(1/(1+np.exp(evals/T))),np.conjugate(u)))
+        el=np.matmul(np.conjugate(u.T),np.matmul(np.diag(1/(1+np.exp(-evals/T))), np.conjugate(v)))
+        el+=np.matmul(vbar.T,np.matmul(np.diag(1/(1+np.exp(evals/T))),np.conjugate(ubar)))
         return el
 
 def hatree(u,v,ubar,vbar,evals,T=0):
     if np.abs(T)<1e-10:
         return np.matmul(vbar.T, np.conjugate(vbar))
     else:
-        el = np.matmul(np.conjugate(v.T),np.matmul(np.diag(1/(1+np.exp(-evals/T))), v))
+        el = np.matmul(vbar.T,np.matmul(np.diag(1/(1+np.exp(-evals/T))), np.conjugate(vbar)))
         el += np.matmul(u.T,np.matmul(1/(1+np.exp(evals/T)), np.conjugate(u)))
         return el
 
@@ -55,7 +55,7 @@ def get_mean_fields(model, nk, HF=True):
 
     return deltas,ns
     
-def self_consistency_loop(model, nk=40, T=0, g=0.0001, HF=True, Nmax=100, Nmin=10, alpha=0.7):
+def self_consistency_loop(model, nk=40, T=0, g=0.001, HF=True, Nmax=100, Nmin=10, alpha=0.7):
     
     delarr = np.array(model.delta)
     narr = np.array(model.ns)

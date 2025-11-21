@@ -109,11 +109,12 @@ def plot_DOS(H, s=(1,1), elim=(-1, 1), ne=200, nk=40, sig=5e-2, ax=None, **kwarg
 
     ylabel = kwargs.get('ylabel', 'Energy (t)')
     xlabel = kwargs.get('xlabel', 'DOS')
-    ax.set_ylim(-ylimit, ylimit) 
+    ylim   = kwargs.get('ylim', (-ylimit, ylimit)) 
 
     ax.plot(dos, e_array, color='black')
     if xlabel: ax.set_xlabel(xlabel, size='x-large')
     if ylabel: ax.set_ylabel(ylabel, size='x-large')
+    if ylim: ax.set_ylim(*ylim)
     ax.tick_params(labelsize='x-large')
 
     return ax
