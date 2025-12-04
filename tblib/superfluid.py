@@ -4,25 +4,24 @@ def fermidirac(E,T,o=0):
     
     nE=0
     if o==0:
-        if np.abs(E)<1e-6 and T!=0:
-            nE = 1
-        elif T==0:
+        if T>=1e-10:
+            nE = 1/(1+np.exp(E/T))
+        elif T<1e-10:
             if E>0:
                 nE = 0
+            elif np.abs(E)<1e-6:
+                nE = 1/2
             else:
                 nE = 1
-        else:
-            nE = 1/(1+np.exp(E/T))
-    elif o==1:
-        if np.abs(E)<1e-6 and T!=0:
-            nE = -1/(4*T)
-        elif np.abs(E)<1e-6 and T==0:
-            nE = -1/4
-        elif T==0:
-            nE = 0
-        else:
-            nE = -1/((1+np.exp(E/T))**2)*np.exp(E/T)/T
         
+    elif o==1:
+        if T>=1e-10:
+            nE = -1/((1+np.exp(E/T))**2)*np.exp(E/T)/T 
+        elif T<1e-10:
+            if np.abs(E)<1e-6:
+                nE = -1/(4*T+1e-10)
+            else:
+                nE = 0     
     return nE
 
 def SFW(model, nk, my= (1,0), ny=(1,0)):
@@ -31,7 +30,7 @@ def SFW(model, nk, my= (1,0), ny=(1,0)):
     
     gammaz = np.kron(np.diag([1,-1]), np.eye(int(model.site_num)))
     
-    term_array = np.zeros((nk**2, 3,int((model.site_num*2)**2)))
+    term_array = np.zeros((nk**2, 3,int((model.site_num*2)**2)), dtype=complex)
     
     karr = np.linspace(0,2*np.pi, nk, endpoint=False)
     summe = 0
@@ -55,6 +54,7 @@ def SFW(model, nk, my= (1,0), ny=(1,0)):
 
             nE = [fermidirac(E,T,o=0) for E in evals]
             dnE = [fermidirac(E,T,o=1) for E in evals]
+
             for k,i in enumerate(evals):
                 for l,j in enumerate(evals):
                     if np.abs(i-j)<1e-6 or k==l:
@@ -87,7 +87,7 @@ def SFW(model, nk, my= (1,0), ny=(1,0)):
     
     return summe/nk**2, term_array
 
-def detSFW(model, nk=80):
+def detSFW(model, nk=81):
     xx = SFW(model, nk, my=(1,0), ny=(1,0))[0]
     xy = SFW(model, nk, my=(1,0), ny=(0,1))[0]
     yx = SFW(model, nk, my=(0,1), ny=(1,0))[0]

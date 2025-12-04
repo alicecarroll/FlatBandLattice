@@ -57,6 +57,7 @@ def plot_bands(H, nk=200, hsp_path='GXMG', ax=None, **kwargs):
 
     for i in range(n):
         energies[i] = np.linalg.eigvalsh(H(*k_path[i]))
+    
     ylimit = np.amax(energies)*1.1
 
 
@@ -67,10 +68,11 @@ def plot_bands(H, nk=200, hsp_path='GXMG', ax=None, **kwargs):
         
     # ax.set_xlabel("$(k_x a,k_y a)$", size='x-large')
     ylabel = kwargs.get('ylabel', 'Energy (t)')
+    ylim = kwargs.get('ylim', ylimit)
     if ylabel: ax.set_ylabel(ylabel, size='x-large')
     ax.set_xticks(ticks=hsp_indices, labels=[hsp_labels[hsp] for hsp in hsp_path])
     ax.tick_params(labelsize='x-large')
-    ax.set_ylim(-ylimit, ylimit) 
+    ax.set_ylim(-ylim,ylim)
 
     for i in hsp_indices:
         ax.axvline(i, c= 'grey', ls='--')
@@ -109,12 +111,12 @@ def plot_DOS(H, s=(1,1), elim=(-1, 1), ne=200, nk=40, sig=5e-2, ax=None, **kwarg
 
     ylabel = kwargs.get('ylabel', 'Energy (t)')
     xlabel = kwargs.get('xlabel', 'DOS')
-    ylim   = kwargs.get('ylim', (-ylimit, ylimit)) 
+    ylim   = kwargs.get('ylim', ylimit) 
 
     ax.plot(dos, e_array, color='black')
     if xlabel: ax.set_xlabel(xlabel, size='x-large')
     if ylabel: ax.set_ylabel(ylabel, size='x-large')
-    if ylim: ax.set_ylim(*ylim)
+    if ylim: ax.set_ylim(-ylim, ylim)
     ax.tick_params(labelsize='x-large')
 
     return ax

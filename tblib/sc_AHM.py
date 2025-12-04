@@ -1,12 +1,27 @@
 import numpy as np
 
+#def cooper(u,v,ubar,vbar,evals,T=0):
+#    if np.abs(T)<1e-10:
+#        return np.matmul(ubar.T,np.conjugate(vbar))
+#    else:
+#        el=np.matmul(ubar.T,np.matmul(np.diag(1/(1+np.exp(-evals/T))), np.conjugate(vbar)))
+#        el+=np.matmul(v.T,np.matmul(np.diag(1/(1+np.exp(evals/T))),np.conjugate(u)))
+#        return el
+
+#def hatree(u,v,ubar,vbar,evals,T=0):
+#    if np.abs(T)<1e-10:
+#        return np.matmul(vbar.T, np.conjugate(vbar))
+#    else:
+#        el = np.matmul(vbar.T,np.matmul(np.diag(1/(1+np.exp(-evals/T))), np.conjugate(vbar)))
+#        el += np.matmul(np.conjugate(u.T),np.matmul(np.diag(1/(1+np.exp(evals/T))), u))
+#        return el
+
 def cooper(u,v,ubar,vbar,evals,T=0):
     if np.abs(T)<1e-10:
         return np.matmul(ubar.T,np.conjugate(vbar))
-        
     else:
-        el=np.matmul(np.conjugate(u.T),np.matmul(np.diag(1/(1+np.exp(-evals/T))), np.conjugate(v)))
-        el+=np.matmul(vbar.T,np.matmul(np.diag(1/(1+np.exp(evals/T))),np.conjugate(ubar)))
+        el=np.matmul(ubar.T,np.matmul(np.diag(1/(1+np.exp(-evals/T))), np.conjugate(vbar)))
+        el+=np.matmul(v.T,np.matmul(np.diag(1/(1+np.exp(evals/T))),np.conjugate(u)))
         return el
 
 def hatree(u,v,ubar,vbar,evals,T=0):
@@ -14,17 +29,34 @@ def hatree(u,v,ubar,vbar,evals,T=0):
         return np.matmul(vbar.T, np.conjugate(vbar))
     else:
         el = np.matmul(vbar.T,np.matmul(np.diag(1/(1+np.exp(-evals/T))), np.conjugate(vbar)))
-        el += np.matmul(u.T,np.matmul(1/(1+np.exp(evals/T)), np.conjugate(u)))
-        return el
+        el += np.matmul(u.T,np.matmul(np.diag(1/(1+np.exp(evals/T))), np.conjugate(u)))
+        return el    
+#def cooper(u,v,ubar,vbar,evals,T=0):
+#    if np.abs(T)<1e-10:
+#        return np.matmul(ubar.T,np.conjugate(vbar))
+#    else:
+#        el=np.matmul(np.diag(1/(1+np.exp(evals/T))),np.matmul(v.T, np.conjugate(u)))
+#        el+=np.matmul(np.diag(1/(1+np.exp(-evals/T))),np.matmul(ubar.T,np.conjugate(vbar)))
+#        return el
+
+#def hatree(u,v,ubar,vbar,evals,T=0):
+#    if np.abs(T)<1e-10:
+#        return np.matmul(vbar.T, np.conjugate(vbar))
+#    else:
+#        el = np.matmul(vbar.T,np.matmul(np.diag(1/(1+np.exp(-evals/T))), np.conjugate(vbar)))
+#        el -= np.matmul(u.T,np.matmul(np.diag(1/(1+np.exp(evals/T))), np.conjugate(u)))
+#        return el
 
 def get_mean_fields(model, nk, HF=True):
-    karr = np.linspace(-np.pi, np.pi, nk)
+    
+    karr = np.linspace(0, 2*np.pi, nk, endpoint=False)
     a = int(model.site_num*2)            
 
     Pairing=np.zeros((a,a), dtype=object)
     Occupation=np.zeros((a,a), dtype=object)
 
     HBdG = model.Hk
+    T = model.T
     c=0
     for x in karr:
         for y in karr:
@@ -32,19 +64,18 @@ def get_mean_fields(model, nk, HF=True):
 
             evals1, Evec = np.linalg.eigh(HBdG(x, y))
             Evec = Evec.T
+            Evec2 = np.flip(Evec, axis=0)
 
             evals = np.flip(evals1)[0:a]
 
-            vbar = Evec[:a, 0:a] #this is conjugate(v-k)
+            u = Evec2[:a, :a]
+            v = Evec2[:a, a:]
+            vbar = Evec[:a, :a] #this is conjugate(v-k)
             ubar = Evec[:a, a:]  #this is conjugate(u-k)
-
-            Evec2 = np.flip(Evec, axis=0)
-            u = Evec2[0:a, 0:a]
-            v = Evec2[0:a, a:]
             
-            Pairing+=cooper(u,v,ubar,vbar,evals,model.T)
+            Pairing+=cooper(u,v,ubar,vbar,evals,T)
             if HF:
-                Occupation += hatree(u,v,ubar,vbar,evals,model.T)         
+                Occupation += hatree(u,v,ubar,vbar,evals,T)         
     
     Dmat = [-Pairing[int(i+a/2),i]/nk**2 for i in range(int(a/2))]
     Nmat = np.diag(Occupation)/nk**2
@@ -55,7 +86,7 @@ def get_mean_fields(model, nk, HF=True):
 
     return deltas,ns
     
-def self_consistency_loop(model, nk=40, T=0, g=0.001, HF=True, Nmax=100, Nmin=10, alpha=0.7):
+def self_consistency_loop(model, nk=40, T=0, g=1e-4, HF=True, Nmax=100, Nmin=10, alpha=0.2):
     
     delarr = np.array(model.delta)
     narr = np.array(model.ns)
@@ -100,7 +131,8 @@ def self_consistency_loop(model, nk=40, T=0, g=0.001, HF=True, Nmax=100, Nmin=10
         ns = np.concatenate((ns, narr.reshape(N,1)), axis=1)
 
         limit1 = (np.std(np.abs(dels[:,-3:]), axis=1)>g).any()
-        limit2 = (np.std(np.abs(ns[:,-3:]), axis=1)>g).any()
+        if HF:
+            limit2 = (np.std(np.abs(ns[:,-3:]), axis=1)>g).any()
 
         if model.nu!=0:
             muarro = muarr
