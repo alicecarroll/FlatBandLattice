@@ -109,6 +109,9 @@ class Model:
                     i=self.map_idx[nn]
                     hkp[i,j] = fact(i,j,kx, ky,dnx, dny)
                     hkh[i,j] = -np.conjugate(fact(i,j,-kx, -ky,dnx, dny))
+            
+            HBdGk_kin = np.block([[hkp, np.zeros_like(hkp)],
+                                 [np.zeros_like(hkp),-hkh]])
 
             for i in self.map_site:
                 if dnx==0 and dny==0: 
@@ -139,14 +142,17 @@ class Model:
             HBdGk_up = np.block([[hkp, HDk],
                                  [np.conjugate(HDk.T),hkh]])
             
+            
 
-            return HBdGk, HBdGk_up, hkp
+            return HBdGk, HBdGk_up, HBdGk_kin
 
 
-        def Hk(kx, ky, reduce=False, dnx=0, dny=0): 
+        def Hk(kx, ky, reduce=False, kinetic_only = False, dnx=0, dny=0): 
 
-            if not reduce:
+            if not (reduce or kinetic_only):
                 HBdGk = H_variety(kx, ky, dnx, dny)[0] #get full spin hamiltonian
+            elif kinetic_only:
+                HBdGk = H_variety(kx, ky, dnx, dny)[2]
             else:
                 HBdGk = H_variety(kx, ky, dnx, dny)[1] #get only spin up BdG hamiltonian
 

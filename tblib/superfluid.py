@@ -24,7 +24,7 @@ def fermidirac(E,T,o=0):
                 nE = 0     
     return nE
 
-def SFW(model, nk, my= (1,0), ny=(1,0)):
+def SFW(model, nk=61, my= (1,0), ny=(1,0)):
     
     T=model.T
     
@@ -36,15 +36,15 @@ def SFW(model, nk, my= (1,0), ny=(1,0)):
     summe = 0
     counter =0
 
-    for kx in karr:
-        for ky in karr:
+    for ky in karr:
+        for kx in karr:
             pflist = []
             parli = []
             diali = []
 
             H = model.Hk(kx,ky, reduce=True)
-            dHdmy = model.Hk(kx,ky, reduce=True, dnx=my[0], dny=my[1])
-            dHdny = model.Hk(kx,ky, reduce=True, dnx=ny[0], dny=ny[1])
+            dHdmy = model.Hk(kx,ky, kinetic_only=True, dnx=my[0], dny=my[1])
+            dHdny = model.Hk(kx,ky, kinetic_only=True, dnx=ny[0], dny=ny[1])
             
             M1 = np.matmul(dHdmy,gammaz)
             M2 = np.matmul(dHdny,gammaz)
@@ -77,9 +77,9 @@ def SFW(model, nk, my= (1,0), ny=(1,0)):
 
                         summe+=s
 
-                    pflist.append(pf/nk)
-                    diali.append(f1*f2/nk)
-                    parli.append(f3*f4/nk)
+                    pflist.append(pf/nk**2)
+                    diali.append(f1*f2)
+                    parli.append(f3*f4)
                 
             term_array[counter]= np.array([pflist, diali, parli])
 
@@ -95,3 +95,89 @@ def detSFW(model, nk=81):
     ten = np.array([[xx,xy],[yx,yy]])
 
     return ten, np.sqrt(np.linalg.det(ten))
+
+def SFWconv(model, nk=61, dk=1e-5, my= (1,0), ny=(1,0)):
+    
+    T=model.T
+    a=model.site_num
+
+    karr = np.linspace(0,2*np.pi, nk, endpoint=False)
+    summe = 0
+
+    term_array = np.zeros((nk**2, 3,int((a)**2)), dtype=complex)
+    counter =0
+
+    for kx in karr:
+        for ky in karr:
+            pref = []
+            upcurr = []
+            downcurr = []
+
+            H = model.Hk(kx,ky, reduce=True)
+
+            H_up = model.Hk(kx,ky, kinetic_only=True)[:a,:a]
+            H_down = -model.Hk(kx,ky, kinetic_only=True)[a:,a:]
+            dHdkmy = model.Hk(kx+my[0]*dk,ky+my[1]*dk, kinetic_only=True)[:a,:a]
+            dHdkny = -model.Hk(kx+ny[0]*dk,ky+ny[1]*dk, kinetic_only=True)[a:,a:]
+            
+            evals, evec = np.linalg.eigh(H)
+            evals_up, evec_up = np.linalg.eigh(H_up)#+muID)
+            evals_down, evec_down = np.linalg.eigh(H_down)#-muID)
+            
+            Evec = evec.T 
+            Evec_up = evec_up.T 
+            Evec_down = evec_down.T 
+
+            evalsdmy = (np.linalg.eigh(dHdkmy)[0]-evals_up)/dk
+            evalsdny = (np.linalg.eigh(dHdkny)[0]-evals_down)/dk
+
+            m_mat=np.block([[Evec_up, np.zeros((a,a))], 
+                            [np.zeros((3,3)), Evec_down]])
+            s_array = np.zeros((2*a,2*a), dtype=complex)
+            for i in range(2*a):
+                s_array[i]= np.linalg.solve(m_mat.T, Evec[i])
+
+            nE = [fermidirac(E,T,o=0) for E in evals]
+            dnE = [fermidirac(E,T,o=1) for E in evals]
+
+            for m in range(a):
+                for n in range(a):
+                    Cnn=0
+                    for k,i in enumerate(evals):
+                        for l,j in enumerate(evals):
+                            
+                            if np.abs(i-j)<1e-6 or k==l:
+                                pf = -dnE[l]
+                            else:
+                                pf = (nE[l]-nE[k])/(i-j)
+
+                            if pf==0:
+                                Cnn+=0
+
+                            else:
+                                #m_mat=np.block([[Evec_up, np.zeros((a,a))], 
+                                #            [np.zeros((3,3)), Evec_down]])
+                                #s_l = np.linalg.solve(m_mat.T, Evec[l])
+                                #s_k = np.linalg.solve(m_mat.T, Evec[k])
+                                s_l = s_array[l]
+                                s_k = s_array[k]
+                                w1 = np.conjugate(s_l[m])
+                                w2 = s_k[m]
+                                w3 = np.conjugate(s_k[n+a])
+                                w4 = s_l[n+a]
+
+                                Cnn+=4*pf*w1*w2*w3*w4
+                    
+                    upc = evalsdmy[m]
+                    downc = evalsdny[n]
+                    summe+=Cnn/(nk**2)*upc*downc
+
+                            
+                    pref.append(Cnn/(nk**2))
+                    upcurr.append(upc)
+                    downcurr.append(downc)
+
+            term_array[counter]= np.array([pref, upcurr, downcurr])
+            counter+=1
+
+    return summe, term_array
