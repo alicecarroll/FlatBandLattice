@@ -24,7 +24,7 @@ def fermidirac(E,T,o=0):
                 nE = 0     
     return nE
 
-def SFW(model, nk=61, my= (1,0), ny=(1,0)):
+def SFW(model, nk=41, my= (1,0), ny=(1,0)):
     
     T=model.T
     
@@ -87,7 +87,7 @@ def SFW(model, nk=61, my= (1,0), ny=(1,0)):
     
     return summe/nk**2, term_array
 
-def detSFW(model, nk=81):
+def detSFW(model, nk=41):
     xx = SFW(model, nk, my=(1,0), ny=(1,0))[0]
     xy = SFW(model, nk, my=(1,0), ny=(0,1))[0]
     yx = SFW(model, nk, my=(0,1), ny=(1,0))[0]
@@ -96,7 +96,7 @@ def detSFW(model, nk=81):
 
     return ten, np.sqrt(np.linalg.det(ten))
 
-def SFWconv(model, nk=61, dk=1e-5, my= (1,0), ny=(1,0)):
+def SFWconv(model, nk=41, dk=1e-6, my= (1,0), ny=(1,0)):
     
     T=model.T
     a=model.site_num
