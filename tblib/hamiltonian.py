@@ -16,6 +16,7 @@ class Model:
 
         # Physical parameters
         self.t = kwargs.get('t', 1.0)
+
         self.mu = kwargs.get('mu', np.zeros(self.N)) 
         self.delta = kwargs.get('delta', np.zeros(self.N)) 
         self.ns = kwargs.get('ns', np.zeros(self.N))
@@ -46,15 +47,25 @@ class Model:
         k-space normal state Hamiltonian function."""
 
         def H0(kx, ky):
-            """Evaluate the normal state Hamiltonian at given kx, ky."""
+            """
+            Evaluate the hopping Hamiltonian at given kx, ky.
+            This function essentially only serves to calculate the SFW.
+            The hole sector doesn't have the minus sign for this reason!
+            """
 
             H0k = np.zeros( ( self.n, self.n ), dtype=complex)
+            H0kh = np.zeros( ( self.n, self.n ), dtype=complex)
             for site, nns in self.lat.nn.items():
                 j = self.lat.map_indices[site]
                 for nn in nns:
                     i = self.lat.map_indices[nn]
                     H0k[i,j] += self.get_hopping(i, j, np.asarray((kx, ky)), dnx=dnx, dny=dny)
-            return H0k
+                    H0kh[i,j] += -self.get_hopping(i, j, np.asarray((-kx, -ky)), dnx=dnx, dny=dny)
+            
+            H0k_reduced = np.block([[H0k, np.zeros_like(H0k)],
+                                  [np.zeros_like(H0k), -np.conjugate(H0kh)]])
+            
+            return H0k_reduced
 
         return H0           
 
@@ -153,29 +164,39 @@ def _init_square_base(self, N=1, **kwargs):
     setattr(self, 'get_onsite_energy', get_onsite_energy)
 
     def get_hopping(i, j, k, dnx=0, dny=0):
+        N = self.lat.N
+        k[0] /= N
+        k[1] /= N
         site = self.lat.map_sites[j]
         nn = self.lat.map_sites[i]
         R = np.stack(self.lat.nn[site][nn]).T
         drkx, drky = -1j * self.lat.mapback(np.asarray(nn) - np.asarray(site))
-        f0 =  (drkx**dnx) * (drky**dny) *  np.exp(drkx * k[0] + drky * k[1])
-        dRkx, dRky = -1j * N * R
-        farr = (dRkx**dnx) * (dRky**dny) * np.exp(dRkx * k[0] + dRky * k[1])
-        return self.t * f0 * np.sum(farr)
+        f0 =  np.exp(drkx * k[0] + drky * k[1])
+        dRkx, dRky = 1j  * N * R
+        farr = np.exp(dRkx * k[0] + dRky * k[1])
+        if dnx == 0 and dny == 0:
+            res = -self.t * f0 * np.sum(farr) 
+        else:
+            res = -self.t * (drkx**dnx) * (drky**dny) * f0 * np.sum(farr) # f'(sublattice)*g(uc)
+            res += -self.t*np.sum((dRkx**dnx) * (dRky**dny) * farr) *f0   # f(sublattice)*g'(uc)
+        return res
     setattr(self, 'get_hopping', get_hopping)
 
     def get_onsite_pairing(i):
-        return self.delta
+        return np.abs(self.U)*self.delta
     setattr(self, 'get_onsite_pairing', get_onsite_pairing)
 
 def _init_DSLmodel_base(self, N=1, **kwargs):
     """Base initialization for DSL-type models"""
 
     self.t = kwargs.get('t', 1.0)
+    self.nu = kwargs.get('nu', 3.0)
+    self.T = kwargs.get('T', 0.0)
     
     for param in ['mu', 'delta', 'ns', 'U']:
         value = kwargs.get(param, None)
         if value is None: value = np.zeros(N)
-        assert value.shape == (N,), f"Parameter {param} must be of shape (N,)"
+        assert np.asarray(value).shape == (N,), f"Parameter {param} must be of shape (N,)"
         setattr(self, param, value)
 
     def get_onsite_energy(i):
@@ -184,18 +205,27 @@ def _init_DSLmodel_base(self, N=1, **kwargs):
     setattr(self, 'get_onsite_energy', get_onsite_energy)
 
     def get_hopping(i, j, k, dnx=0, dny=0):
+        N = self.lat.N
+        k[0] /= N
+        k[1] /= N
         site = self.lat.map_sites[j]
         nn = self.lat.map_sites[i]
         R = np.stack(self.lat.nn[site][nn]).T
         drkx, drky = 1j * self.lat.mapback(np.asarray(nn) - np.asarray(site))
-        f0 =  (drkx**dnx) * (drky**dny) *  np.exp(drkx * k[0] + drky * k[1])
-        dRkx, dRky = 1j * 1/N * R
-        farr = (dRkx**dnx) * (dRky**dny) * np.exp(dRkx * k[0] + dRky * k[1])
-        return -self.t * f0 * np.sum(farr)
+        f0 =  np.exp(drkx * k[0] + drky * k[1])
+        dRkx, dRky = 1j  * N * R
+        farr = np.exp(dRkx * k[0] + dRky * k[1])
+        if dnx == 0 and dny == 0:
+            res = -self.t * f0 * np.sum(farr) 
+        else:
+            res = - 1/N*self.t * (drkx**dnx) * (drky**dny) * f0 * np.sum(farr) # f'(sublattice)*g(uc)
+            res += - 1/N*self.t*np.sum((dRkx**dnx) * (dRky**dny) * farr) *f0   # f(sublattice)*g'(uc)
+        return res
     setattr(self, 'get_hopping', get_hopping)
 
     def get_onsite_pairing(i):
-        return self.delta[self.lat.map_diag[i]]
+        idx = self.lat.map_diag[i]
+        return np.abs(self.U[idx])*self.delta[idx]
     setattr(self, 'get_onsite_pairing', get_onsite_pairing)   
 
 ### Specific Models ###

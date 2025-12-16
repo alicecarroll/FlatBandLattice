@@ -47,10 +47,6 @@ def plot_bands(H, nk=200, hsp_path='GXMG', ax=None, **kwargs):
 
     k_path, hsp_indices = get_k_path(nk, hsp_path)
 
-    s = kwargs.get('s', (1,1))
-    k_path[:,0] /= s[0]
-    k_path[:,1] /= s[1]
-
     n = len(k_path)
     Hk = H(k_path[0][0], k_path[0][0])
     energies = np.zeros((n, Hk.shape[0]))
@@ -86,9 +82,6 @@ def plot_DOS(H, s=(1,1), elim=(-1, 1), ne=200, nk=40, sig=5e-2, ax=None, **kwarg
 
     k_lin = np.linspace(0, 2*np.pi, nk, endpoint=False)
     kx, ky = np.meshgrid(k_lin, k_lin)
-
-    kx /= s[0]
-    ky /= s[1]
 
     k_points = np.column_stack((kx.flatten(), ky.flatten()))
 

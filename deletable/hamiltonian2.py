@@ -1,4 +1,4 @@
-from . import lattice
+from ..tblib import lattice
 import numpy as np
 import scipy.constants as sc
 import matplotlib.pyplot as plt

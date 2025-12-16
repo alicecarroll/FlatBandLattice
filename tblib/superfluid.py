@@ -28,13 +28,17 @@ def SFW(model, nk=41, my= (1,0), ny=(1,0)):
     
     T=model.T
     
-    gammaz = np.kron(np.diag([1,-1]), np.eye(int(model.site_num)))
+    gammaz = np.kron(np.diag([1,-1]), np.eye(int(model.n)))
     
-    term_array = np.zeros((nk**2, 3,int((model.site_num*2)**2)), dtype=complex)
+    term_array = np.zeros((nk**2, 3,int((model.n*2)**2)), dtype=complex)
     
     karr = np.linspace(0,2*np.pi, nk, endpoint=False)
     summe = 0
     counter =0
+
+    H = model.get_reducedH()
+    Hdmy = model.get_kinH(dnx=my[0], dny=my[1])
+    Hdny = model.get_kinH(dnx=ny[0], dny=ny[1])
 
     for ky in karr:
         for kx in karr:
@@ -42,14 +46,14 @@ def SFW(model, nk=41, my= (1,0), ny=(1,0)):
             parli = []
             diali = []
 
-            H = model.Hk(kx,ky, reduce=True)
-            dHdmy = model.Hk(kx,ky, kinetic_only=True, dnx=my[0], dny=my[1])
-            dHdny = model.Hk(kx,ky, kinetic_only=True, dnx=ny[0], dny=ny[1])
+            Hk = H(kx,ky)
+            dHkdmy = Hdmy(kx,ky)
+            dHkdny = Hdny(kx,ky)
             
-            M1 = np.matmul(dHdmy,gammaz)
-            M2 = np.matmul(dHdny,gammaz)
+            M1 = np.matmul(dHkdmy,gammaz)
+            M2 = np.matmul(dHkdny,gammaz)
             
-            evals, evec = np.linalg.eigh(H)
+            evals, evec = np.linalg.eigh(Hk)
             Evec = evec.T 
 
             nE = [fermidirac(E,T,o=0) for E in evals]
@@ -67,8 +71,8 @@ def SFW(model, nk=41, my= (1,0), ny=(1,0)):
                         f1, f2, f3, f4 = (0,0,0,0)
 
                     else:
-                        f1 = np.matmul(np.conjugate(Evec[k].T),np.matmul(dHdmy,Evec[l]))
-                        f2 = np.matmul(np.conjugate(Evec[l].T),np.matmul(dHdny,Evec[k]))
+                        f1 = np.matmul(np.conjugate(Evec[k].T),np.matmul(dHkdmy,Evec[l]))
+                        f2 = np.matmul(np.conjugate(Evec[l].T),np.matmul(dHkdny,Evec[k]))
 
                         f3 = np.matmul(np.conjugate(Evec[k].T),np.matmul(M1,Evec[l]))
                         f4 = np.matmul(np.conjugate(Evec[l].T),np.matmul(M2,Evec[k]))
@@ -99,7 +103,7 @@ def detSFW(model, nk=41):
 def SFWconv(model, nk=41, dk=1e-6, my= (1,0), ny=(1,0)):
     
     T=model.T
-    a=model.site_num
+    a=model.n
 
     karr = np.linspace(0,2*np.pi, nk, endpoint=False)
     summe = 0
@@ -107,22 +111,25 @@ def SFWconv(model, nk=41, dk=1e-6, my= (1,0), ny=(1,0)):
     term_array = np.zeros((nk**2, 3,int((a)**2)), dtype=complex)
     counter =0
 
+    HBdG = model.get_reducedH()
+    kinH = model.get_kinH()
+    
     for kx in karr:
         for ky in karr:
             pref = []
             upcurr = []
             downcurr = []
 
-            H = model.Hk(kx,ky, reduce=True)
+            H = HBdG(kx,ky)
 
-            H_up = model.Hk(kx,ky, kinetic_only=True)[:a,:a]
-            H_down = -model.Hk(kx,ky, kinetic_only=True)[a:,a:]
-            dHdkmy = model.Hk(kx+my[0]*dk,ky+my[1]*dk, kinetic_only=True)[:a,:a]
-            dHdkny = -model.Hk(kx+ny[0]*dk,ky+ny[1]*dk, kinetic_only=True)[a:,a:]
+            H_up = kinH(kx,ky)[:a,:a]
+            H_down = -kinH(kx,ky)[a:,a:]
+            dHdkmy = kinH(kx+my[0]*dk,ky+my[1]*dk)[:a,:a]
+            dHdkny = -kinH(kx+ny[0]*dk,ky+ny[1]*dk)[a:,a:]
             
             evals, evec = np.linalg.eigh(H)
-            evals_up, evec_up = np.linalg.eigh(H_up)#+muID)
-            evals_down, evec_down = np.linalg.eigh(H_down)#-muID)
+            evals_up, evec_up = np.linalg.eigh(H_up)
+            evals_down, evec_down = np.linalg.eigh(H_down)
             
             Evec = evec.T 
             Evec_up = evec_up.T 
@@ -155,10 +162,7 @@ def SFWconv(model, nk=41, dk=1e-6, my= (1,0), ny=(1,0)):
                                 Cnn+=0
 
                             else:
-                                #m_mat=np.block([[Evec_up, np.zeros((a,a))], 
-                                #            [np.zeros((3,3)), Evec_down]])
-                                #s_l = np.linalg.solve(m_mat.T, Evec[l])
-                                #s_k = np.linalg.solve(m_mat.T, Evec[k])
+                                
                                 s_l = s_array[l]
                                 s_k = s_array[k]
                                 w1 = np.conjugate(s_l[m])

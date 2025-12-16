@@ -19,12 +19,12 @@ def hatree(u,v,ubar,vbar,evals,T=0):
 def get_mean_fields(model, nk, HF=True):
     
     karr = np.linspace(0, 2*np.pi, nk, endpoint=False)
-    a = int(model.site_num*2)            
+    a = int(model.n*2)            
 
     Pairing=np.zeros((a,a), dtype=object)
     Occupation=np.zeros((a,a), dtype=object)
 
-    HBdG = model.Hk
+    HBdG = model.get_HBdG()
     T = model.T
     c=0
     for x in karr:
@@ -50,25 +50,24 @@ def get_mean_fields(model, nk, HF=True):
     Nmat = np.diag(Occupation)/nk**2
     final_N = [Nmat[i]+Nmat[int(i+a/2)] for i in range(int(a/2))]
 
-    deltas = [Dmat[model.map_idx[(i,0)]] for i in range(model.N)]
-    ns = [final_N[model.map_idx[(i,0)]] for i in range(model.N)]
+    deltas = [Dmat[model.lat.map_indices[(i,0)]] for i in range(model.N)]
+    ns = [final_N[model.lat.map_indices[(i,0)]] for i in range(model.N)]
 
     return deltas,ns
     
-def self_consistency_loop(model, nk=40, T=0, g=1e-4, HF=True, Nmax=100, Nmin=10, alpha=0.2):
+def self_consistency_loop(model, nk=40, T=0, g=1e-4, HF=True, Nmax=100, Nmin=10, alpha=0.3):
     
+    N = model.N
+
     delarr = np.array(model.delta)
     narr = np.array(model.ns)
     muarr = np.array(model.mu)
 
-
-    dels = delarr.reshape(model.N,1)
-    ns = narr.reshape(model.N,1)
-    mus = muarr.reshape(model.N,1)
+    dels = delarr.reshape(N,1)
+    ns = narr.reshape(N,1)
+    mus = muarr.reshape(N,1)
 
     c=0
-    N = model.N
-
 
     limit1 = False
     limit2 = False
@@ -107,11 +106,11 @@ def self_consistency_loop(model, nk=40, T=0, g=1e-4, HF=True, Nmax=100, Nmin=10,
             muarro = muarr
 
             en=0
-            H = model.Hk(0,0)
-            for i in range(int(model.site_num)):
+            H = model.get_HBdG()(0,0)
+            for i in range(int(model.n)):
                 en += H[i,i]
 
-            mun = 1/(model.site_num)*(model.U[0]/2*(model.nu-6)+en)
+            mun = 1/(model.n)*(model.U[0]/2*(model.nu-6)+en)
 
             muarr = np.array([mun for i in range(N)])           
             muarr = alpha*muarro+(1-alpha)*muarr

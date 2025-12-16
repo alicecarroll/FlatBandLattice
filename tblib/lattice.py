@@ -4,7 +4,6 @@ import numpy as np
 class Lattice:
     def __init__(self, sites):
         
-        #self.sites = {tuple(s) for s in sites}
         self.sites = list(set({tuple(s) for s in sites}))
 
         self.nn = {site: {} for site in self.sites}
@@ -28,20 +27,10 @@ class Lattice:
         if field is not None: assert len(field) == len(sites)
         ax.scatter(*sites.T, c='k' if field is None else field, cmap=cmap, vmin=0, vmax=2)
         return ax
-        #for site in self.sites:
-        #    ax.scatter(site[0], site[1], c='k')
-        #return ax
     
     def plot_nn(self, ax=None, field=None, cmap='viridis'):
 
         ax = self.plot_lattice(ax=ax, field=field, cmap=cmap)
-
-        #if ax is None: _, ax = plt.subplots()
-        #ax.set_aspect('equal')
-        #ax.set_xticks([])
-        #ax.set_yticks([])
-        #for site in self.sites:
-        #    ax.scatter(site[0], site[1], c='k')
       
         for site in self.nn:
             for nn in self.nn[site]:
@@ -99,9 +88,6 @@ def _init_square_base(self):
                 else: 
                     self.nn[site][(nxf, nyf)] = [(Rxf, Ryf),]
 
-    # Use the raw displacement between sites (no modulo) so that forward and reverse
-    # hops are exact negatives of each other. This ensures k-space phases are
-    # complex conjugates and the Hamiltonian remains Hermitian.
     self.mapback = lambda s: s
     
     self.update_maps()
@@ -122,21 +108,6 @@ class DiagonallyStripedLattice(Lattice):
         super().__init__(sites)
         _init_DSL_base(self)
 
-        #nn_templates = [(1,0), (0,1), (-1,0), (0,-1)]
-#
-        #for site in self.sites:
-        #    nxi, nyi = site
-#
-        #    for dx, dy in nn_templates:
-#
-        #        Rxf, nxf = divmod(nxi + dx, self.N)
-        #        Ryf, nyf = divmod(nyi + dy, self.N)
-        #        if (nxf, nyf) in sites:
-        #            if (nxf, nyf) in self.nn[site]:
-        #                self.nn[site][(nxf, nyf)].append( (Rxf, Ryf) )
-        #            else: 
-        #                self.nn[site][(nxf, nyf)] = [(Rxf, Ryf),]
-
 class dDiagonallyStripedLattice(Lattice):
     def __init__(self, N=1):
 
@@ -145,28 +116,6 @@ class dDiagonallyStripedLattice(Lattice):
 
         super().__init__(sites)
         _init_DSL_base(self)
-        
-
-        #sites = [(nx, ny) for nx in range(self.N) for ny in range(self.N)]
-        #for site in sites[1:]:
-        #    if site[0]==site[1]:
-        #        sites.remove(site)
-
-
-        #nn_templates = [(1,0), (0,1), (-1,0), (0,-1)]
-        #self.sites.pop('(2,2)')
-        #for site in self.sites:
-        #    nxi, nyi = site
-#
-        #    for dx, dy in nn_templates:
-#
-        #        Rxf, nxf = divmod(nxi + dx, self.N)
-        #        Ryf, nyf = divmod(nyi + dy, self.N)
-        #        if (nxf, nyf) in sites:
-        #            if (nxf, nyf) in self.nn[site]:
-         #               self.nn[site][(nxf, nyf)].append( (Rxf, Ryf) )
-        #            else: 
-        #                self.nn[site][(nxf, nyf)] = [(Rxf, Ryf),]
     
 class LiebNLattice(Lattice):
     def __init__(self, N=1):
