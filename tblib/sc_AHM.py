@@ -1,13 +1,13 @@
 import numpy as np
 
 def cooper(u,v,ubar,vbar,evals,T=0):
-    if np.abs(T)<1e-10:
+    if np.abs(T)<1e-10:#
         return np.matmul(ubar.T,np.conjugate(vbar))
     else:
         el=np.matmul(ubar.T,np.matmul(np.diag(1/(1+np.exp(-evals/T))), np.conjugate(vbar)))
         el+=np.matmul(v.T,np.matmul(np.diag(1/(1+np.exp(evals/T))),np.conjugate(u)))
         return el
-
+    
 def hatree(u,v,ubar,vbar,evals,T=0):
     if np.abs(T)<1e-10:
         return np.matmul(vbar.T, np.conjugate(vbar))
