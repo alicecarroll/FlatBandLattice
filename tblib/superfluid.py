@@ -139,7 +139,7 @@ def SFWconv(model, nk=41, dk=1e-6, my= (1,0), ny=(1,0)):
             evalsdny = (np.linalg.eigh(dHdkny)[0]-evals_down)/dk
 
             m_mat=np.block([[Evec_up, np.zeros((a,a))], 
-                            [np.zeros((3,3)), Evec_down]])
+                            [np.zeros((a,a)), Evec_down]])
             s_array = np.zeros((2*a,2*a), dtype=complex)
             for i in range(2*a):
                 s_array[i]= np.linalg.solve(m_mat.T, Evec[i])
@@ -185,3 +185,12 @@ def SFWconv(model, nk=41, dk=1e-6, my= (1,0), ny=(1,0)):
             counter+=1
 
     return summe, term_array
+
+def det_convSFW(model, nk=41):
+    xx = SFWconv(model, nk, my=(1,0), ny=(1,0))[0]
+    xy = SFWconv(model, nk, my=(1,0), ny=(0,1))[0]
+    yx = SFWconv(model, nk, my=(0,1), ny=(1,0))[0]
+    yy = SFWconv(model, nk, my=(0,1), ny=(0,1))[0]
+    ten = np.array([[xx,xy],[yx,yy]])
+
+    return ten, np.sqrt(np.linalg.det(ten))

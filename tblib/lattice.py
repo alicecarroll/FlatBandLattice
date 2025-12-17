@@ -24,8 +24,15 @@ class Lattice:
         ax.set_xticks([])
         ax.set_yticks([])
         sites = np.array(self.sites)
-        if field is not None: assert len(field) == len(sites)
-        ax.scatter(*sites.T, c='k' if field is None else field, cmap=cmap, vmin=0, vmax=2)
+        if field is not None: 
+            assert len(field) == len(sites)
+            f = np.asarray(field)
+            vmin = np.amin(f)*(1-0.1)
+            vmax = np.amax(f)*(1+0.1)
+        else:
+            vmin=0
+            vmax=1
+        ax.scatter(*sites.T, c='k' if field is None else field, cmap=cmap, vmin=vmin, vmax=vmax)
         return ax
     
     def plot_nn(self, ax=None, field=None, cmap='viridis'):
@@ -97,6 +104,16 @@ def _init_DSL_base(self):
     _init_square_base(self)
     setattr(self, 'map_diag', 
         {self.map_indices[site]: (site[0]+site[1])%self.N for site in self.sites})
+    
+    def site_to_group(siteidx):
+        
+        as_d = {i: [site for site in self.nn if site in [((i+j)%self.N, j) for j in range(self.N)]] for i in range(self.N)} # atomic species dictionary associate each site to its group of stripes
+        site = self.map_sites[siteidx]
+        num = [key for key,val in as_d.items() if site in val]
+
+        return num[0]
+    
+    setattr(self, 'site_to_group', site_to_group)
 
 
 class DiagonallyStripedLattice(Lattice):
@@ -116,6 +133,8 @@ class dDiagonallyStripedLattice(Lattice):
 
         super().__init__(sites)
         _init_DSL_base(self)
+    
+   
     
 class LiebNLattice(Lattice):
     def __init__(self, N=1):

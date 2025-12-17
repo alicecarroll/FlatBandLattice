@@ -11,7 +11,7 @@ class Model:
         self.lat = lat
         self.dim = 0    # BdG Hamiltonian dimension
         self.n = 0      # Number of sites per u.c.
-        self.N = kwargs.get('N', 2) # number of atoms until next u.c. along x-axis for example
+        self.N = 0 # number of atoms until next u.c. along x-axis for example
 
 
         # Physical parameters
@@ -200,7 +200,7 @@ def _init_DSLmodel_base(self, N=1, **kwargs):
         setattr(self, param, value)
 
     def get_onsite_energy(i):
-        idx = self.lat.map_diag[i]
+        idx = self.lat.site_to_group(i)
         return -self.mu[idx] - self.U[idx]/2 * self.ns[idx]
     setattr(self, 'get_onsite_energy', get_onsite_energy)
 
@@ -224,7 +224,7 @@ def _init_DSLmodel_base(self, N=1, **kwargs):
     setattr(self, 'get_hopping', get_hopping)
 
     def get_onsite_pairing(i):
-        idx = self.lat.map_diag[i]
+        idx = self.lat.site_to_group(i)
         return np.abs(self.U[idx])*self.delta[idx]
     setattr(self, 'get_onsite_pairing', get_onsite_pairing)   
 

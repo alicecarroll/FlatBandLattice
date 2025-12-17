@@ -109,7 +109,7 @@ def plot_DOS(H, s=(1,1), elim=(-1, 1), ne=200, nk=40, sig=5e-2, ax=None, **kwarg
     ax.plot(dos, e_array, color='black')
     if xlabel: ax.set_xlabel(xlabel, size='x-large')
     if ylabel: ax.set_ylabel(ylabel, size='x-large')
-    if ylim: ax.set_ylim(-ylim, ylim)
+    ax.set_ylim(-ylim, ylim)
     ax.tick_params(labelsize='x-large')
 
     return ax

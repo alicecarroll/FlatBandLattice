@@ -19,7 +19,8 @@ def hatree(u,v,ubar,vbar,evals,T=0):
 def get_mean_fields(model, nk, HF=True):
     
     karr = np.linspace(0, 2*np.pi, nk, endpoint=False)
-    a = int(model.n*2)            
+    a = int(model.n*2)
+    N = model.lat.N            
 
     Pairing=np.zeros((a,a), dtype=object)
     Occupation=np.zeros((a,a), dtype=object)
@@ -50,14 +51,14 @@ def get_mean_fields(model, nk, HF=True):
     Nmat = np.diag(Occupation)/nk**2
     final_N = [Nmat[i]+Nmat[int(i+a/2)] for i in range(int(a/2))]
 
-    deltas = [Dmat[model.lat.map_indices[(i,0)]] for i in range(model.N)]
-    ns = [final_N[model.lat.map_indices[(i,0)]] for i in range(model.N)]
+    deltas = [Dmat[model.lat.map_indices[(i,0)]] for i in range(N)]
+    ns = [final_N[model.lat.map_indices[(i,0)]] for i in range(N)]
 
     return deltas,ns
     
 def self_consistency_loop(model, nk=40, T=0, g=1e-4, HF=True, Nmax=100, Nmin=10, alpha=0.3):
     
-    N = model.N
+    N = model.lat.N
 
     delarr = np.array(model.delta)
     narr = np.array(model.ns)
@@ -110,7 +111,7 @@ def self_consistency_loop(model, nk=40, T=0, g=1e-4, HF=True, Nmax=100, Nmin=10,
             for i in range(int(model.n)):
                 en += H[i,i]
 
-            mun = 1/(model.n)*(model.U[0]/2*(model.nu-6)+en)
+            mun = 1/(model.n)*(model.U[0]/2*(model.nu-model.n*2)+en)
 
             muarr = np.array([mun for i in range(N)])           
             muarr = alpha*muarro+(1-alpha)*muarr
