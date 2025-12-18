@@ -17,11 +17,10 @@ class Model:
         # Physical parameters
         self.t = kwargs.get('t', 1.0)
 
-        self.mu = kwargs.get('mu', np.zeros(self.N)) 
-        self.delta = kwargs.get('delta', np.zeros(self.N)) 
-        self.ns = kwargs.get('ns', np.zeros(self.N))
-        self.U = kwargs.get('U', np.ones(self.N))
-
+        self.mu = None
+        self.delta = None
+        self.ns = None
+        self.U = None
         self.T = kwargs.get('T', 0)
         self.nu = kwargs.get('nu', 0.0)
 
@@ -195,13 +194,13 @@ def _init_DSLmodel_base(self, N=1, **kwargs):
     
     for param in ['mu', 'delta', 'ns', 'U']:
         value = kwargs.get(param, None)
-        if value is None: value = np.zeros(N)
-        assert np.asarray(value).shape == (N,), f"Parameter {param} must be of shape (N,)"
+        if value is None: value = np.zeros(self.n)
+        assert np.asarray(value).shape == (self.n,), f"Parameter {param} must be of shape (n,)"
         setattr(self, param, value)
 
     def get_onsite_energy(i):
-        idx = self.lat.site_to_group(i)
-        return -self.mu[idx] - self.U[idx]/2 * self.ns[idx]
+        #idx = self.lat.map_sites[i]
+        return -self.mu[i] - self.U[i]/2 * self.ns[i]
     setattr(self, 'get_onsite_energy', get_onsite_energy)
 
     def get_hopping(i, j, k, dnx=0, dny=0):
@@ -224,8 +223,8 @@ def _init_DSLmodel_base(self, N=1, **kwargs):
     setattr(self, 'get_hopping', get_hopping)
 
     def get_onsite_pairing(i):
-        idx = self.lat.site_to_group(i)
-        return np.abs(self.U[idx])*self.delta[idx]
+        #idx = self.lat.map_sites[i]
+        return np.abs(self.U[i])*self.delta[i]
     setattr(self, 'get_onsite_pairing', get_onsite_pairing)   
 
 ### Specific Models ###
@@ -236,9 +235,10 @@ class SquareLatticeModel(Model):
         self.lat = lattice.SquareLattice()
         super().__init__(lat=self.lat)
 
-        _init_square_base(self, 1, **kwargs)
         self.n = 1
         self.dim = 4 * self.n
+        _init_square_base(self, 1, **kwargs)
+
 
 class DSLmodel(Model):
     def __init__(self, N=1, **kwargs):
@@ -246,9 +246,9 @@ class DSLmodel(Model):
         self.lat = lattice.DiagonallyStripedLattice(N=N)
         super().__init__(lat=self.lat)
 
-        _init_DSLmodel_base(self, N, **kwargs)
         self.n = self.lat.N**2
         self.dim = 4 * self.n
+        _init_DSLmodel_base(self, N, **kwargs)
 
 class dDSLmodel(Model):
     def __init__(self, N=1, **kwargs):
@@ -256,9 +256,9 @@ class dDSLmodel(Model):
         self.lat = lattice.dDiagonallyStripedLattice(N=N)
         super().__init__(lat=self.lat)
 
-        _init_DSLmodel_base(self, N, **kwargs)
         self.n = self.lat.N**2 - self.lat.N + 1
         self.dim = 4 * self.n
+        _init_DSLmodel_base(self, N, **kwargs)
 
 class LiebNmodel(Model):
     def __init__(self, N=1, **kwargs):
@@ -266,9 +266,9 @@ class LiebNmodel(Model):
         self.lat = lattice.LiebNLattice(N=N)
         super().__init__(lat=self.lat)
 
-        _init_square_base(self, N, **kwargs)
         self.n = 2 * self.lat.N - 1
         self.dim = 4 * self.n
+        _init_square_base(self, N, **kwargs)
 
 
 

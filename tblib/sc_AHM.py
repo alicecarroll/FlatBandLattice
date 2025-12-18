@@ -47,26 +47,26 @@ def get_mean_fields(model, nk, HF=True):
             if HF:
                 Occupation += hatree(u,v,ubar,vbar,evals,T)         
     
-    Dmat = [-Pairing[int(i+a/2),i]/nk**2 for i in range(int(a/2))]
+    deltas = [-Pairing[int(i+a/2),i]/nk**2 for i in range(int(a/2))]
     Nmat = np.diag(Occupation)/nk**2
-    final_N = [Nmat[i]+Nmat[int(i+a/2)] for i in range(int(a/2))]
+    ns = [Nmat[i]+Nmat[int(i+a/2)] for i in range(int(a/2))]
 
-    deltas = [Dmat[model.lat.map_indices[(i,0)]] for i in range(N)]
-    ns = [final_N[model.lat.map_indices[(i,0)]] for i in range(N)]
+    #deltas = [Dmat[model.lat.map_indices[(i,0)]] for i in range(N)]
+    #ns = [final_N[model.lat.map_indices[(i,0)]] for i in range(N)]
 
     return deltas,ns
     
 def self_consistency_loop(model, nk=40, T=0, g=1e-4, HF=True, Nmax=100, Nmin=10, alpha=0.3):
     
-    N = model.lat.N
+    n = model.n
 
     delarr = np.array(model.delta)
     narr = np.array(model.ns)
     muarr = np.array(model.mu)
 
-    dels = delarr.reshape(N,1)
-    ns = narr.reshape(N,1)
-    mus = muarr.reshape(N,1)
+    dels = delarr.reshape(n,1)
+    ns = narr.reshape(n,1)
+    mus = muarr.reshape(n,1)
 
     c=0
 
@@ -96,8 +96,8 @@ def self_consistency_loop(model, nk=40, T=0, g=1e-4, HF=True, Nmax=100, Nmin=10,
 
             model.ns = narr
 
-        dels = np.concatenate((dels, delarr.reshape(N,1)), axis=1)
-        ns = np.concatenate((ns, narr.reshape(N,1)), axis=1)
+        dels = np.concatenate((dels, delarr.reshape(n,1)), axis=1)
+        ns = np.concatenate((ns, narr.reshape(n,1)), axis=1)
 
         limit1 = (np.std(np.abs(dels[:,-3:]), axis=1)>g).any()
         if HF:
@@ -113,11 +113,11 @@ def self_consistency_loop(model, nk=40, T=0, g=1e-4, HF=True, Nmax=100, Nmin=10,
 
             mun = 1/(model.n)*(model.U[0]/2*(model.nu-model.n*2)+en)
 
-            muarr = np.array([mun for i in range(N)])           
+            muarr = np.array([mun for i in range(n)])           
             muarr = alpha*muarro+(1-alpha)*muarr
 
             model.mu = muarr
-        mus = np.concatenate((mus, muarr.reshape(N,1)), axis=1)
+        mus = np.concatenate((mus, muarr.reshape(n,1)), axis=1)
                     
     return dels, ns, mus
     
