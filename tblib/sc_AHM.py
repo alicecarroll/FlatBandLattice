@@ -55,7 +55,7 @@ def get_mean_fields(model, nk, HF=True):
     #ns = [final_N[model.lat.map_indices[(i,0)]] for i in range(N)]
 
     return deltas,ns
-    
+
 def self_consistency_loop(model, nk=40, T=0, g=1e-4, HF=True, Nmax=100, Nmin=10, alpha=0.3):
     
     n = model.n

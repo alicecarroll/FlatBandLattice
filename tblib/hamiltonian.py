@@ -28,7 +28,7 @@ class Model:
         self.HD = None
         self.HBdG = None
 
-        
+
     def get_onsite_energy(self, i):
         """Default onsite energy function."""
         return 0.0
@@ -68,7 +68,7 @@ class Model:
 
         return H0           
 
-        
+
     def get_H0(self, dnx=0, dny=0):
         """Construct the (dnx, dny) derivative of the 
         k-space normal state Hamiltonian function."""
@@ -86,28 +86,30 @@ class Model:
             return H0k
 
         return H0            
-        
+
+
     def get_HBdG(self, dnx=0, dny=0):
         """Construct the (dnx, dny) derivative of the 
         k-space BdG Hamiltonian function."""
 
         H0 = self.get_H0(dnx=dnx, dny=dny)
-
+        
         def HBdG(kx, ky): 
             """Evaluate the Hamiltonian at given kx, ky."""
 
             H0kp = H0(kx, ky)                   # particle sector
+            zmat = np.zeros_like(H0kp, dtype=complex)
             H0kh = -np.conjugate(H0(-kx, -ky))  # hole sector
-            HDk = np.zeros_like(H0kp)           # pairing matrix
+            HDk = np.zeros_like(H0kp, dtype=complex)           # pairing matrix
 
             for site, _ in self.lat.nn.items():
                 j = self.lat.map_indices[site]
                 HDk[j,j] += self.get_onsite_pairing(j)
 
-            H0kp_spinfull = np.block([[H0kp, np.zeros_like(H0kp)],
-                                  [np.zeros_like(H0kp), H0kp]])
-            H0kh_spinfull = np.block([[H0kh, np.zeros_like(H0kh)],
-                                  [np.zeros_like(H0kh), H0kh]])
+            H0kp_spinfull = np.block([[H0kp, zmat],
+                                  [zmat, H0kp]])
+            H0kh_spinfull = np.block([[H0kh, zmat],
+                                  [zmat, H0kh]])
             HDk_spinfull = np.block([[np.zeros_like(HDk), HDk],
                                   [-HDk, np.zeros_like(HDk)]])
 
@@ -146,7 +148,7 @@ class Model:
         return HBdG      
 
 ### Model Initializations ###
-    
+
 def _init_square_base(self, N=1, **kwargs):
     """Base initialization for square-lattice-type models"""
 

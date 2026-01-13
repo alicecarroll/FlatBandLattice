@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
-
+from numba import njit, prange, complex128, float32
+from numba.experimental import jitclass
 
 hsp_dict = {
     'G': (0, 0),
@@ -41,7 +42,6 @@ def get_k_path(nk, hsp_path):
     hsp_indices = np.cumsum([0] + segment_lengths)
 
     return np.array(k_path), hsp_indices
-
 
 def plot_bands(H, nk=200, hsp_path='GXMG', ax=None, **kwargs):
 

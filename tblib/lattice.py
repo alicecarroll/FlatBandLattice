@@ -77,7 +77,7 @@ class SquareLattice(Lattice):
         self.nn[(0, 0)] = {(0, 0): [(1, 0), (0, 1), (-1, 0), (0, -1)]}
         self.update_maps()
 
-    
+
 def _init_square_base(self):
 
     nn_templates = [(1,0), (0,1), (-1,0), (0,-1)]
