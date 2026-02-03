@@ -1,7 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from numba import njit, prange, complex128, float32
-from numba.experimental import jitclass
+
 
 hsp_dict = {
     'G': (0, 0),

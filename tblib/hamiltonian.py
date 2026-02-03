@@ -153,15 +153,18 @@ def _init_square_base(self, N=1, **kwargs):
     """Base initialization for square-lattice-type models"""
 
     self.t = kwargs.get('t', 1.0)
+    self.nu = kwargs.get('nu', 0.5)
+    self.T = kwargs.get('T', 0.0)
     
     for param in ['mu', 'delta', 'ns', 'U']:
         value = kwargs.get(param, None)
-        if value is None: value = .0
-        assert isinstance(value, float), f"Parameter {param} must be a float"
+        if value is None: value = np.zeros(self.n)
+        assert np.asarray(value).shape == (self.n,), f"Parameter {param} must be of shape (n,)"
         setattr(self, param, value)
 
     def get_onsite_energy(i):
-        return -self.mu - self.U/2 * self.ns
+        #idx = self.lat.map_sites[i]
+        return -self.mu[i] - self.U[i]/2 * self.ns[i]
     setattr(self, 'get_onsite_energy', get_onsite_energy)
 
     def get_hopping(i, j, k, dnx=0, dny=0):
@@ -171,21 +174,22 @@ def _init_square_base(self, N=1, **kwargs):
         site = self.lat.map_sites[j]
         nn = self.lat.map_sites[i]
         R = np.stack(self.lat.nn[site][nn]).T
-        drkx, drky = -1j * self.lat.mapback(np.asarray(nn) - np.asarray(site))
+        drkx, drky = 1j * self.lat.mapback(np.asarray(nn) - np.asarray(site))
         f0 =  np.exp(drkx * k[0] + drky * k[1])
         dRkx, dRky = 1j  * N * R
         farr = np.exp(dRkx * k[0] + dRky * k[1])
         if dnx == 0 and dny == 0:
             res = -self.t * f0 * np.sum(farr) 
         else:
-            res = -self.t * (drkx**dnx) * (drky**dny) * f0 * np.sum(farr) # f'(sublattice)*g(uc)
-            res += -self.t*np.sum((dRkx**dnx) * (dRky**dny) * farr) *f0   # f(sublattice)*g'(uc)
+            res = - 1/N*self.t * (drkx**dnx) * (drky**dny) * f0 * np.sum(farr) # f'(sublattice)*g(uc)
+            res += - 1/N*self.t*np.sum((dRkx**dnx) * (dRky**dny) * farr) *f0   # f(sublattice)*g'(uc)
         return res
     setattr(self, 'get_hopping', get_hopping)
-
+    
     def get_onsite_pairing(i):
-        return np.abs(self.U)*self.delta
-    setattr(self, 'get_onsite_pairing', get_onsite_pairing)
+        #idx = self.lat.map_sites[i]
+        return np.abs(self.U[i])*self.delta[i]
+    setattr(self, 'get_onsite_pairing', get_onsite_pairing)  
 
 def _init_DSLmodel_base(self, N=1, **kwargs):
     """Base initialization for DSL-type models"""
@@ -237,7 +241,7 @@ class SquareLatticeModel(Model):
         self.lat = lattice.SquareLattice()
         super().__init__(lat=self.lat)
 
-        self.n = 1
+        self.n = self.lat.N**2
         self.dim = 4 * self.n
         _init_square_base(self, 1, **kwargs)
 

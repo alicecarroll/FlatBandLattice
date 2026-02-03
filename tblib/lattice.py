@@ -70,7 +70,8 @@ class Lattice:
         return arblist
 
 class SquareLattice(Lattice):
-    def __init__(self):
+    def __init__(self, N=1):
+        self.N=N
         sites = {(0, 0)}
         super().__init__(sites)
         
