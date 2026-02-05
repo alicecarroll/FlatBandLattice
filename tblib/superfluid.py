@@ -92,13 +92,13 @@ def SFW(model, nk=41, my= (1,0), ny=(1,0)):
     return summe/nk**2, term_array
 
 def detSFW(model, nk=41):
-    xx = SFW(model, nk, my=(1,0), ny=(1,0))[0]
+    xx, term = SFW(model, nk, my=(1,0), ny=(1,0))
     xy = SFW(model, nk, my=(1,0), ny=(0,1))[0]
     #yx = SFW(model, nk, my=(0,1), ny=(1,0))[0]
     #yy = SFW(model, nk, my=(0,1), ny=(0,1))[0]
     ten = np.array([[xx,xy],[xy,xx]])
 
-    return ten, np.sqrt(np.linalg.det(ten))
+    return ten, np.sqrt(np.linalg.det(ten)), term
 
 def SFWconv(model, nk=41, my= (1,0), ny=(1,0)):
     
@@ -189,10 +189,10 @@ def SFWconv(model, nk=41, my= (1,0), ny=(1,0)):
     return summe, term_array
 
 def det_convSFW(model, nk=41):
-    xx = SFWconv(model, nk, my=(1,0), ny=(1,0))[0]
+    xx, term = SFWconv(model, nk, my=(1,0), ny=(1,0))
     xy = SFWconv(model, nk, my=(1,0), ny=(0,1))[0]
     #yx = SFWconv(model, nk, my=(0,1), ny=(1,0))[0]
     #yy = SFWconv(model, nk, my=(0,1), ny=(0,1))[0]
     ten = np.array([[xx,xy],[xy,xx]])
 
-    return ten, np.sqrt(np.linalg.det(ten))
+    return ten, np.sqrt(np.linalg.det(ten)), term
