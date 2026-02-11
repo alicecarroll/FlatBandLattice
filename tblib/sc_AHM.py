@@ -1,31 +1,35 @@
 import numpy as np
 
 def cooper(u,v,ubar,vbar,evals,T=0):
-    if np.abs(T)<1e-10:#
+    if np.abs(T)<1e-6:#
         return np.matmul(ubar.T,np.conjugate(vbar))
     else:
-        el=np.matmul(ubar.T,np.matmul(np.diag(1/(1+np.exp(-evals/T))), np.conjugate(vbar)))
-        el+=np.matmul(v.T,np.matmul(np.diag(1/(1+np.exp(evals/T))),np.conjugate(u)))
+        A = 1/(1+np.exp(-evals/T))
+        B = 1/(1+np.exp(evals/T))
+        el=np.matmul(ubar.T,np.matmul(np.diag(A), np.conjugate(vbar)))
+        el+=np.matmul(v.T,np.matmul(np.diag(B),np.conjugate(u)))
         return el
     
 def hatree(u,v,ubar,vbar,evals,T=0):
-    if np.abs(T)<1e-10:
+    if np.abs(T)<1e-6:
         return np.matmul(vbar.T, np.conjugate(vbar))
     else:
-        el = np.matmul(vbar.T,np.matmul(np.diag(1/(1+np.exp(-evals/T))), np.conjugate(vbar)))
-        el += np.matmul(u.T,np.matmul(np.diag(1/(1+np.exp(evals/T))), np.conjugate(u)))
+        A = 1/(1+np.exp(-evals/T))
+        B = 1/(1+np.exp(evals/T))
+        el = np.matmul(vbar.T,np.matmul(np.diag(A), np.conjugate(vbar)))
+        el += np.matmul(u.T,np.matmul(np.diag(B), np.conjugate(u)))
         return el 
 
 def get_mean_fields(model, nk, HF=True):
     
     karr = np.linspace(0, 2*np.pi, nk, endpoint=False)
-    a = int(model.n*2)
+    a = int(model.n)
     N = model.lat.N            
 
     Pairing=np.zeros((a,a), dtype=object)
     Occupation=np.zeros((a,a), dtype=object)
 
-    HBdG = model.get_HBdG()
+    HBdG = model.get_reducedH()
     T = model.T
     c=0
     for x in karr:
@@ -47,9 +51,9 @@ def get_mean_fields(model, nk, HF=True):
             if HF:
                 Occupation += hatree(u,v,ubar,vbar,evals,T)         
     
-    deltas = [-Pairing[int(i+a/2),i]/nk**2 for i in range(int(a/2))]
+    deltas = [-Pairing[i,i]/nk**2 for i in range(a)]
     Nmat = np.diag(Occupation)/nk**2
-    ns = [Nmat[i]+Nmat[int(i+a/2)] for i in range(int(a/2))]
+    ns = [Nmat[i]*2 for i in range(a)]
 
     #deltas = [Dmat[model.lat.map_indices[(i,0)]] for i in range(N)]
     #ns = [final_N[model.lat.map_indices[(i,0)]] for i in range(N)]
@@ -107,7 +111,7 @@ def self_consistency_loop(model, nk=40, T=0, g=1e-4, HF=True, Nmax=100, Nmin=10,
             muarro = muarr
 
             en=0
-            H = model.get_HBdG()(0,0)
+            H = model.get_reducedH()(0,0)
             for i in range(int(model.n)):
                 en += H[i,i]
 

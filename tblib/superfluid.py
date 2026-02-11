@@ -4,22 +4,22 @@ def fermidirac(E,T,o=0):
     
     nE=0
     if o==0:
-        if T>=1e-10:
+        if T>=1e-2 or (E<T*50 and T!=0.0):
             nE = 1/(1+np.exp(E/T))
-        elif T<1e-10:
+        elif T<1e-2:
             if E>0:
                 nE = 0
-            elif np.abs(E)<1e-6:
+            elif np.abs(E)<1e-10:
                 nE = 1/2
             else:
                 nE = 1
         
     elif o==1:
-        if T>=1e-10:
-            nE = -1/((1+np.exp(E/T))**2)*np.exp(E/T)/T 
-        elif T<1e-10:
+        if T>=1e-2 or (E<T*50 and T!=0.0):
+            nE = -(1/(1+np.exp(E/T))**2)*np.exp(E/T)/T
+        elif T<1e-2:
             if np.abs(E)<1e-6:
-                nE = -1/(4*T+1e-10)
+                nE = -1/(4*T+1e-3)
             else:
                 nE = 0     
     return nE
