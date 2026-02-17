@@ -153,7 +153,7 @@ def _init_square_base(self, N=1, **kwargs):
     """Base initialization for square-lattice-type models"""
 
     self.t = kwargs.get('t', 1.0)
-    self.nu = kwargs.get('nu', 0.5)
+    self.nu = kwargs.get('nu', 1.0)
     self.T = kwargs.get('T', 0.0)
     
     for param in ['mu', 'delta', 'ns', 'U']:

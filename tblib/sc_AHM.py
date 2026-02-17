@@ -44,8 +44,8 @@ def get_mean_fields(model, nk, HF=True):
 
             u = Evec2[:a, :a]
             v = Evec2[:a, a:]
-            vbar = Evec[:a, :a] #this is conjugate(v-k)
-            ubar = Evec[:a, a:]  #this is conjugate(u-k)
+            vbar = Evec[:a, :a] #vbar is conjugate(v-k)
+            ubar = Evec[:a, a:]  #ubar is conjugate(u-k)
             
             Pairing+=cooper(u,v,ubar,vbar,evals,T)
             if HF:
@@ -115,7 +115,7 @@ def self_consistency_loop(model, nk=40, T=0, g=1e-4, HF=True, Nmax=100, Nmin=10,
             for i in range(int(model.n)):
                 en += H[i,i]
 
-            mun = 1/(model.n)*(model.U[0]/2*(model.nu-model.n*2)+en)
+            mun = 1/(model.n)*(model.U[0]/2*(model.nu-model.n*2)+en)#1/(model.n)*(model.U[0]/2*(model.nu-model.n*2)+en)
 
             muarr = np.array([mun for i in range(n)])           
             muarr = alpha*muarro+(1-alpha)*muarr
