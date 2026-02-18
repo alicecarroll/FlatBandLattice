@@ -28,7 +28,7 @@ def hopping_kernel(kx, ky, dnx, dny, N, sx, sy, nnx, nny, R, r0, r1, t):
         res += - 1/N*t*dfarr*f0   # f(sublattice)*g'(uc)
     return res
 
-@njit(parallel=True)
+@njit#(parallel=True)
 def H_kin(H, kx, ky, dnx, dny, s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t):
     """
     Evaluate the hopping Hamiltonian at given kx, ky.
@@ -37,8 +37,8 @@ def H_kin(H, kx, ky, dnx, dny, s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N
     The hole sector doesn't have the minus sign for this reason!
     """
 
-    H0k = H.copy()
-    H0kh = H.copy()
+    H0k = np.zeros((n,n), dtype=complex128)
+    H0kh = np.zeros((n,n), dtype=complex128)
     H_kin = np.zeros((2*n, 2*n), dtype=complex128)
     
     for e in prange(len(s_idx)):
@@ -46,7 +46,7 @@ def H_kin(H, kx, ky, dnx, dny, s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N
         i=n_idx[e]
         
         H0k[i,j] += hopping_kernel(kx, ky, dnx, dny, N, sx[e], sy[e], nx[e], ny[e], R_flat, R_ptr[e], R_ptr[e+1], t)
-        H0kh[i,j] += -hopping_kernel(-kx, -ky, dnx, dny, N, sx[e], sy[e], nx[e], ny[e], R_flat, R_ptr[e], R_ptr[e+1], t)
+        H0kh[i,j] += hopping_kernel(-kx, -ky, dnx, dny, N, sx[e], sy[e], nx[e], ny[e], R_flat, R_ptr[e], R_ptr[e+1], t)
     
     H_kin[:n, :n] = H0k
     H_kin[n:, n:] = H0kh
