@@ -4,6 +4,7 @@ import scipy.constants as sc
 import matplotlib.pyplot as plt
 from numba import jit, prange, int64, complex128, float64
 from . import hamiltonian_opti
+from . import sc_AHM
 from importlib import reload
 reload(hamiltonian_opti)
 
@@ -73,11 +74,6 @@ class Model:
         big = np.array([self.U, self.ns, self.mu, self.delta], dtype=complex)
         return small, big
     
-    
-    def get_selfconsistent_params(self):
-        """Default onsite energy function."""
-        return 0.0
-
     def get_SFW(self):
         """Default hopping function."""
         return 0.0
@@ -96,6 +92,19 @@ class Model:
         
         return H0
     
+    def get_Hkin(self, dnx=0, dny=0):
+        """Get basic normal state Hamiltonian."""
+        
+        lparams = self.prep_lat_params()
+        sparams, bparams = self.prep_en_params()
+
+        def H0(kx, ky):
+            H = np.zeros((self.n, self.n), dtype=complex)
+            H_0 = hamiltonian_opti.H_kin(H, kx, ky, dnx, dny, *lparams, *sparams[:-2])
+            return H_0
+        
+        return H0
+    
     def get_HBdG(self, dnx=0, dny=0):
         """Get BdG Hamiltonian."""
         lparams = self.prep_lat_params()
@@ -110,7 +119,7 @@ class Model:
         return H_B
 
     def get_Hreduced(self, dnx=0, dny=0):
-        """Get BdG Hamiltonian."""
+        """Get BdG Hamiltonian for one spin orientation."""
         lparams = self.prep_lat_params()
         sparams, bparams = self.prep_en_params()
         U, ns, mu, delta= bparams
@@ -121,6 +130,25 @@ class Model:
             return H_bdg[1]
         
         return H_B
+    
+    def get_sc_params(self, g=1e-6, HF=True, Nmax=300, Nmin=10, alpha=0.3):
+        """Get selfconsistent pairing strength delta, 
+        occupation numbers n and on-site energy mu (if filling factor is defined)"""
+
+        lparams = self.prep_lat_params()
+        sparams, bparams = self.prep_en_params()
+        U, ns, mu, delta= bparams
+        karr = np.linspace(0,2*np.pi, 41,endpoint=False)
+
+        dels, ons, mus = sc_AHM.self_consistency_loop(*lparams, *sparams, U, ns, mu, delta, 
+                              karr, g, HF, Nmax, Nmin, alpha)
+        
+        self.delta = dels[:,-1]
+        self.ns = ons[:,-1]
+        self.mu = mus[:,-1]
+        
+        return dels, ons, mus
+
 ### Model Initializations ###
 
 def _init_square_base(self, N=1, **kwargs):

@@ -5,7 +5,7 @@ reload(hamiltonian_opti)
 from numba import njit, jit, prange, complex128
 
 
-@njit
+@njit(fastmath=True)
 def matmul(A, B):
     return np.dot(A, B)
 
@@ -45,7 +45,6 @@ def hatree(u,v,ubar,vbar,evals,T=0.0):
 def get_mean_fields(s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t, nu, T, U, ns, mu, delta, karr, HF=True):
     
     nk = np.shape(karr)[0]
-    n = int(n)
 
     dnx = 0
     dny = 0
@@ -92,7 +91,7 @@ def get_mean_fields(s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t, nu, T,
     Nmat = np.diag(Occupation)/nk**2
     for i in prange(n):
         deltas[i] = -Pairing[i,i]/nk**2
-        nsarr[i] = Nmat[i]
+        nsarr[i] = Nmat[i]*2
 
     return deltas,nsarr
 
@@ -100,7 +99,6 @@ def get_mean_fields(s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t, nu, T,
 def self_consistency_loop(s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t, nu, T, U, ns, mu, delta, 
                           karr, g=1e-6, HF=True, Nmax=100, Nmin=10, alpha=0.3):
     
-    nk = np.shape(karr)[0]
     dnx=0
     dny=0
     delarr = delta.copy()
@@ -180,11 +178,13 @@ def self_consistency_loop(s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t, 
             
             en=0.0+0j
             H0[:]=0.0+0j
-            H = hamiltonian_opti.HBdG(H0, 0.0,0.0, dnx, dny, s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t, nu, T, U, ns, mu, delta)[1]
+            H = hamiltonian_opti.HBdG(H0, 0.0,0.0, dnx, dny, s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t, nu, T, U, narro, muarro, delarro)[1]
+            #print(H)
             for i in range(n):
                 en += H[i,i]
+                
 
-            mun = 1/(n)*(U[0]/2*(nu-n/2)+en)
+            mun = 1/(n)*(U[0]/2*(nu-n*2)+en)
 
             for i in range(n):
                 muarr[i] = mun          

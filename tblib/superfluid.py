@@ -1,5 +1,10 @@
 import numpy as np
+from . import hamiltonian_opti
+from importlib import reload
+reload(hamiltonian_opti)
+from numba import njit, jit, prange, complex128
 
+@njit(fastmath=True)
 def fermidirac(E,T,o=0):
     
     nE=0
