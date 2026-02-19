@@ -70,7 +70,7 @@ def H_0(H, kx, ky, dnx, dny, s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, 
             
     return H
 
-@njit(parallel=True)
+@njit#(parallel=True)
 def HBdG(H, kx, ky, dnx, dny, s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t, nu, T, U, ns, mu, delta): 
     """Evaluate the Hamiltonian at given kx, ky."""
 

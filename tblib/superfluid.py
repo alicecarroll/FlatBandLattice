@@ -20,15 +20,15 @@ def fermidirac(E,T,o=0):
             if np.real(E)>0:
                 nE = 0.0+0.0j
             elif np.abs(E)<1e-10:
-                nE = 1/2
+                nE = 1/2+0.0j
             else:
-                nE = 1
+                nE = 1+0.0j
         
     elif o==1:
         if T>=1e-2 or (np.real(E)<T*50 and T!=0.0):
             nE = -(1/(1+np.exp(E/T))**2)*np.exp(E/T)/T
         elif T<1e-2:
-            nE = 0     
+            nE = 0.0 + 0.0j     
     return nE
 
 @njit
@@ -82,8 +82,9 @@ def SFW(s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t, nu, T, U, ns, mu, 
     M2 = np.zeros((2*n, 2*n),dtype=complex128)
     nE = np.zeros(2*n, dtype=complex128)
     dnE = np.zeros(2*n, dtype=complex128)
-    eval_arr, evec_arr = eigen_Hred(s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t, nu, T, U, ns, mu, delta, 
-                          karr, dmy, dny)
+
+    #eval_arr, evec_arr = eigen_Hred(s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t, nu, T, U, ns, mu, delta, 
+    #                      karr, dmy, dny)
 
     summe = 0.0+0.0j
     counter =0
@@ -93,30 +94,30 @@ def SFW(s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t, nu, T, U, ns, mu, 
         for xj in range(nk):
             kx = karr[xj]
 
-            #Hred = hamiltonian_opti.HBdG(H.copy(), kx, ky, 0, 0, s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t,
-            #                             nu, T, U, ns, mu, delta)[1]
+            pflist[:] = 0.0+0.0j
+            diali[:] = 0.0+0.0j
+            parli[:] = 0.0+0.0j
+            Hdmy[:] = 0.0 +0.0j
+            Hdny[:] = 0.0 +0.0j
+            Hred = hamiltonian_opti.HBdG(H.copy(), kx, ky, 0, 0, s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t,
+                                         nu, T, U, ns, mu, delta)[1]
             Hdmy[:] = hamiltonian_opti.H_kin(H.copy(), kx, ky, dmy[0], dmy[1], s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t)
             Hdny[:] = hamiltonian_opti.H_kin(H.copy(), kx, ky, dny[0], dny[1], s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t)
 
-            #evals, evec = np.linalg.eigh(Hred)
+            evals[:], Evec[:] = np.linalg.eigh(Hred)
             #Evec = evec.T 
-            evals[:] = eval_arr[counter]
-            Evec[:] = evec_arr[counter]
+            #evals[:] = eval_arr[counter]
+            #Evec[:] = evec_arr[counter]
 
             M1[:] = matmul(Hdmy,gammaz)
             M2[:] = matmul(Hdny,gammaz)         
-
-            if counter<3:
-                print(H, '\n', Hdmy, '\n', Hdny, '\n')   
 
             for ei,E in enumerate(evals):
 
                 nE[ei] = fermidirac(E,T,o=0)
                 dnE[ei] = fermidirac(E,T,o=1)
 
-            pflist[:] = 0.0+0.0j
-            diali[:] = 0.0+0.0j
-            parli[:] = 0.0+0.0j
+            
             scounter = 0
             for k in range(2*n):
                 i = evals[k]
@@ -134,16 +135,16 @@ def SFW(s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t, nu, T, U, ns, mu, 
                     else:
                         vk = Evec[:,k]
                         vl = Evec[:,l]
+                        
+                        T1 = matmul(Hdmy,vl)
+                        T2 = matmul(Hdny,vk)
+                        T3 = matmul(M1,vl)
+                        T4 = matmul(M2,vk)
 
-                        f1 = np.vdot(vk, Hdmy @ vl)
-                        f2 = np.vdot(vl, Hdny @ vk)
-                        f3 = np.vdot(vk, M1 @ vl)
-                        f4 = np.vdot(vl, M2 @ vk)
-                        #f1 = matmul(np.conjugate(Evec[k]),matmul(Hdmy,Evec[l]))
-                        #f2 = matmul(np.conjugate(Evec[l]),matmul(Hdny,Evec[k]))
-
-                        #f3 = matmul(np.conjugate(Evec[k]),matmul(M1,Evec[l]))
-                        #f4 = matmul(np.conjugate(Evec[l]),matmul(M2,Evec[k]))
+                        f1 = matmul(np.conjugate(vk),T1)
+                        f2 = matmul(np.conjugate(vl),T2)
+                        f3 = matmul(np.conjugate(vk),T3)
+                        f4 = matmul(np.conjugate(vl),T4)
 
                         s = pf*(f1*f2-f3*f4)
 
@@ -162,9 +163,13 @@ def SFW(s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t, nu, T, U, ns, mu, 
     
     return summe/nk**2, term_array
 
-def detSFW(model, nk=41):
-    xx = SFW(model, nk, my=(1,0), ny=(1,0))[0]
-    xy = SFW(model, nk, my=(1,0), ny=(0,1))[0]
+@njit
+def detSFW(s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t, nu, T, U, ns, mu, delta, 
+                          karr):
+    xx = SFW(s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t, nu, T, U, ns, mu, delta, 
+                          karr, dmy= (1,0), dny=(1,0))[0]
+    xy = SFW(s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t, nu, T, U, ns, mu, delta, 
+                          karr, dmy= (1,0), dny=(0,1))[0]
     #yx = SFW(model, nk, my=(0,1), ny=(1,0))[0]
     #yy = SFW(model, nk, my=(0,1), ny=(0,1))[0]
     ten = np.array([[xx,xy],[xy,xx]])
