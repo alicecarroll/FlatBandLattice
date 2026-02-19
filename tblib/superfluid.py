@@ -83,8 +83,8 @@ def SFW(s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t, nu, T, U, ns, mu, 
     nE = np.zeros(2*n, dtype=complex128)
     dnE = np.zeros(2*n, dtype=complex128)
 
-    #eval_arr, evec_arr = eigen_Hred(s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t, nu, T, U, ns, mu, delta, 
-    #                      karr, dmy, dny)
+    eval_arr, evec_arr = eigen_Hred(s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t, nu, T, U, ns, mu, delta, 
+                          karr, dmy, dny)
 
     summe = 0.0+0.0j
     counter =0
@@ -94,20 +94,20 @@ def SFW(s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t, nu, T, U, ns, mu, 
         for xj in range(nk):
             kx = karr[xj]
 
-            pflist[:] = 0.0+0.0j
-            diali[:] = 0.0+0.0j
-            parli[:] = 0.0+0.0j
-            Hdmy[:] = 0.0 +0.0j
-            Hdny[:] = 0.0 +0.0j
-            Hred = hamiltonian_opti.HBdG(H.copy(), kx, ky, 0, 0, s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t,
-                                         nu, T, U, ns, mu, delta)[1]
+            #pflist[:] = 0.0+0.0j
+            #diali[:] = 0.0+0.0j
+            #parli[:] = 0.0+0.0j
+            #Hdmy[:] = 0.0 +0.0j
+            #Hdny[:] = 0.0 +0.0j
+            #Hred = hamiltonian_opti.HBdG(H.copy(), kx, ky, 0, 0, s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t,
+            #                             nu, T, U, ns, mu, delta)[1]
             Hdmy[:] = hamiltonian_opti.H_kin(H.copy(), kx, ky, dmy[0], dmy[1], s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t)
             Hdny[:] = hamiltonian_opti.H_kin(H.copy(), kx, ky, dny[0], dny[1], s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t)
 
-            evals[:], Evec[:] = np.linalg.eigh(Hred)
+            #evals[:], Evec[:] = np.linalg.eigh(Hred)
             #Evec = evec.T 
-            #evals[:] = eval_arr[counter]
-            #Evec[:] = evec_arr[counter]
+            evals[:] = eval_arr[counter]
+            Evec[:] = evec_arr[counter]
 
             M1[:] = matmul(Hdmy,gammaz)
             M2[:] = matmul(Hdny,gammaz)         
@@ -117,7 +117,6 @@ def SFW(s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t, nu, T, U, ns, mu, 
                 nE[ei] = fermidirac(E,T,o=0)
                 dnE[ei] = fermidirac(E,T,o=1)
 
-            
             scounter = 0
             for k in range(2*n):
                 i = evals[k]
@@ -172,62 +171,82 @@ def detSFW(s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t, nu, T, U, ns, m
                           karr, dmy= (1,0), dny=(0,1))[0]
     #yx = SFW(model, nk, my=(0,1), ny=(1,0))[0]
     #yy = SFW(model, nk, my=(0,1), ny=(0,1))[0]
-    ten = np.array([[xx,xy],[xy,xx]])
+    ten = np.array([[xx,xy],[xy,xx]], dtype=complex128)
 
-    return ten, np.sqrt(np.linalg.det(ten))
+    return ten, np.sqrt(xx*xx-xy*xy)
 
-def SFWconv(model, nk=41, my= (1,0), ny=(1,0)):
+@njit
+def SFWconv(s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t, nu, T, U, ns, mu, delta, 
+                          karr, dmy= (1,0), dny=(1,0)):
     
-    T=model.T
-    a=model.n
+    nk = len(karr)
+    
+    H = np.zeros((n, n), dtype=complex128)
+    evals = np.zeros(2*n, dtype=complex128)
+    Evec = np.zeros((2*n, 2*n), dtype=complex128)
+    evec_up = np.zeros((n, n), dtype=complex128)
+    evec_down = np.zeros((n, n), dtype=complex128)
+    evalsdmy = np.zeros(n, dtype=complex128)
+    evalsdny = np.zeros(n, dtype=complex128)
+    m_mat = np.zeros((2*n, 2*n), dtype=complex128)
+    nE = np.zeros(2*n, dtype=complex128)
+    dnE = np.zeros(2*n, dtype=complex128)
 
-    karr = np.linspace(0,2*np.pi, nk, endpoint=False)
-    summe = 0
+    #HBdG = model.get_reducedH()
+    #kinH = model.get_kinH()
+    #kinHdmy = model.get_kinH(dnx=my[0], dny=my[1])
+    #kinHdny = model.get_kinH(dnx=ny[0], dny=ny[1])
 
-    term_array = np.zeros((nk**2, 3,int((a)**2)), dtype=complex)
+    eval_arr, evec_arr = eigen_Hred(s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t, nu, T, U, ns, mu, delta, 
+                          karr, dmy, dny)
+
+
+    term_array = np.zeros((nk**2, 3,int((n)**2)), dtype=complex128)
+    pref = np.zeros(int(n**2), dtype=complex128)
+    upcurr = np.zeros(int(n**2), dtype=complex128)
+    downcurr = np.zeros(int(n**2), dtype=complex128)
+
+    summe = 0.0 + 0.0j
     counter =0
-
-    HBdG = model.get_reducedH()
-    kinH = model.get_kinH()
-    kinHdmy = model.get_kinH(dnx=my[0], dny=my[1])
-    kinHdny = model.get_kinH(dnx=ny[0], dny=ny[1])
     
     for kx in karr:
         for ky in karr:
-            pref = []
-            upcurr = []
-            downcurr = []
 
-            H = HBdG(kx,ky)
-            dH_my = kinHdmy(kx,ky)
-            dH_ny = kinHdny(kx,ky)
+            dH_my = hamiltonian_opti.H_kin(H.copy(), kx, ky, dmy[0], dmy[1], s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t)
+            dH_ny = hamiltonian_opti.H_kin(H.copy(), kx, ky, dny[0], dny[1], s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t)
 
-            H_up = kinH(kx,ky)[:a,:a]
-            H_down = -kinH(kx,ky)[a:,a:]
+            H_up = hamiltonian_opti.H_kin(H.copy(), kx, ky, 0, 0, s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t)[:n,:n]
+            H_down = -hamiltonian_opti.H_kin(H.copy(), kx, ky, 0, 0, s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t)[n:,n:]
             
-            evals, evec = np.linalg.eigh(H)
-            evals_up, evec_up = np.linalg.eigh(H_up)
-            evals_down, evec_down = np.linalg.eigh(H_down)
+            evals[:] = eval_arr[counter]
+            Evec[:] = evec_arr[counter]
+            evec_up[:] = np.linalg.eigh(H_up)[1]
+            evec_down[:] = np.linalg.eigh(H_down)[1]
             
-            Evec = evec.T 
-            Evec_up = evec_up.T 
-            Evec_down = evec_down.T 
+            #Evec = evec.T 
+            #Evec_up = evec_up.T 
+            #Evec_down = evec_down.T 
+            for ei in range(n):
+                evalsdmy[ei] = matmul(evec_up[:,ei], matmul(dH_my[:n,:n], evec_up[:,ei]))
+                evalsdny[ei] = matmul(evec_down[:,ei], matmul(dH_ny[:n,:n], evec_down[:,ei]))
 
-            evalsdmy = [np.matmul(e, np.matmul(dH_my[:a,:a], e))for e in Evec_up]
-            evalsdny = [np.matmul(e, np.matmul(dH_ny[a:,a:], e))for e in Evec_down]
+            m_mat[:n,:n]=evec_up.T
+            m_mat[n:,n:]=evec_down.T     
 
-            m_mat=np.block([[Evec_up, np.zeros((a,a))], 
-                            [np.zeros((a,a)), Evec_down]])
-            s_array = np.zeros((2*a,2*a), dtype=complex)
-            for i in range(2*a):
-                s_array[i]= np.linalg.solve(m_mat.T, Evec[i])
+            s_array = np.zeros((2*n,2*n), dtype=complex128)
+            for i in range(2*n):
+                s_array[i]= np.linalg.solve(m_mat.T, Evec[:,i])
+            if counter <4:
+                print(s_array)
 
-            nE = [fermidirac(E,T,o=0) for E in evals]
-            dnE = [fermidirac(E,T,o=1) for E in evals]
+            for ei,E in enumerate(evals):
+                nE[ei] = fermidirac(E,T,o=0)
+                dnE[ei] = fermidirac(E,T,o=1)
 
-            for m in range(a):
-                for n in range(a):
-                    Cnn=0
+            scount = 0
+            for mi in range(n):
+                for ni in range(n):
+                    Cnn=0.0+0.0j
                     for k,i in enumerate(evals):
                         for l,j in enumerate(evals):
                             
@@ -236,30 +255,32 @@ def SFWconv(model, nk=41, my= (1,0), ny=(1,0)):
                             else:
                                 pf = (nE[l]-nE[k])/(i-j)
 
-                            if pf==0:
-                                Cnn+=0
+                            if pf==0.0+0.0j:
+                                Cnn+=0.0+0.0j
 
                             else:
                                 
                                 s_l = s_array[l]
                                 s_k = s_array[k]
-                                w1 = np.conjugate(s_l[m])
-                                w2 = s_k[m]
-                                w3 = np.conjugate(s_k[n+a])
-                                w4 = s_l[n+a]
+                                w1 = np.conjugate(s_l[mi])
+                                w2 = s_k[mi]
+                                w3 = np.conjugate(s_k[ni+n])
+                                w4 = s_l[ni+n]
 
                                 Cnn+=4*pf*w1*w2*w3*w4
                     
-                    upc = evalsdmy[m]
-                    downc = evalsdny[n]
+                    upc = evalsdmy[mi]
+                    downc = evalsdny[ni]
                     summe+=Cnn/(nk**2)*upc*downc
 
-                            
-                    pref.append(Cnn/(nk**2))
-                    upcurr.append(upc)
-                    downcurr.append(downc)
+                    pref[scount] = Cnn/(nk**2)
+                    upcurr[scount] = upc
+                    downcurr[scount] = downc     
+                    scount+=1
 
-            term_array[counter]= np.array([pref, upcurr, downcurr])
+            term_array[counter,0]= pref[:]
+            term_array[counter,1]= upcurr[:]
+            term_array[counter,2]= downcurr[:]
             counter+=1
 
     return summe, term_array
