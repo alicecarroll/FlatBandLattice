@@ -192,11 +192,6 @@ def SFWconv(s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t, nu, T, U, ns, 
     nE = np.zeros(2*n, dtype=complex128)
     dnE = np.zeros(2*n, dtype=complex128)
 
-    #HBdG = model.get_reducedH()
-    #kinH = model.get_kinH()
-    #kinHdmy = model.get_kinH(dnx=my[0], dny=my[1])
-    #kinHdny = model.get_kinH(dnx=ny[0], dny=ny[1])
-
     eval_arr, evec_arr = eigen_Hred(s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t, nu, T, U, ns, mu, delta, 
                           karr, dmy, dny)
 
@@ -230,6 +225,7 @@ def SFWconv(s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t, nu, T, U, ns, 
                 evalsdmy[ei] = matmul(evec_up[:,ei], matmul(dH_my[:n,:n], evec_up[:,ei]))
                 evalsdny[ei] = matmul(evec_down[:,ei], matmul(dH_ny[n:,n:], evec_down[:,ei]))
 
+            m_mat[:] = 0.0+0.0j
             m_mat[:n,:n]=evec_up.T
             m_mat[n:,n:]=evec_down.T     
 
@@ -237,7 +233,6 @@ def SFWconv(s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t, nu, T, U, ns, 
             for i in range(2*n):
                 s_array[i]= np.linalg.solve(m_mat.T, Evec[:,i])
 
-            
             for ei,E in enumerate(evals):
                 nE[ei] = fermidirac(E,T,o=0)
                 dnE[ei] = fermidirac(E,T,o=1)
@@ -267,6 +262,8 @@ def SFWconv(s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t, nu, T, U, ns, 
                                 w4 = s_l[ni+n]
 
                                 Cnn+=4*pf*w1*w2*w3*w4
+                    if counter==0:
+                        print(Cnn, '\n\n', pf, w1, w2, w3, w4, '\n\n')
                     
                     upc = evalsdmy[mi]
                     downc = evalsdny[ni]
