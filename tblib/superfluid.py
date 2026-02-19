@@ -216,7 +216,7 @@ def SFWconv(s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t, nu, T, U, ns, 
             dH_ny = hamiltonian_opti.H_kin(H.copy(), kx, ky, dny[0], dny[1], s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t)
 
             H_up = hamiltonian_opti.H_kin(H.copy(), kx, ky, 0, 0, s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t)[:n,:n]
-            H_down = hamiltonian_opti.H_kin(H.copy(), kx, ky, 0, 0, s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t)[n:,n:]
+            H_down = -hamiltonian_opti.H_kin(H.copy(), kx, ky, 0, 0, s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t)[n:,n:]
             
             evals[:] = eval_arr[counter]
             Evec[:] = evec_arr[counter]
@@ -228,7 +228,7 @@ def SFWconv(s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t, nu, T, U, ns, 
             #Evec_down = evec_down.T 
             for ei in range(n):
                 evalsdmy[ei] = matmul(evec_up[:,ei], matmul(dH_my[:n,:n], evec_up[:,ei]))
-                evalsdny[ei] = matmul(evec_down[:,ei], matmul(dH_ny[:n,:n], evec_down[:,ei]))
+                evalsdny[ei] = matmul(evec_down[:,ei], matmul(dH_ny[n:,n:], evec_down[:,ei]))
 
             m_mat[:n,:n]=evec_up.T
             m_mat[n:,n:]=evec_down.T     
@@ -237,6 +237,7 @@ def SFWconv(s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t, nu, T, U, ns, 
             for i in range(2*n):
                 s_array[i]= np.linalg.solve(m_mat.T, Evec[:,i])
 
+            
             for ei,E in enumerate(evals):
                 nE[ei] = fermidirac(E,T,o=0)
                 dnE[ei] = fermidirac(E,T,o=1)
