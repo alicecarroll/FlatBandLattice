@@ -142,9 +142,6 @@ def SFWconv(model, nk=41, my= (1,0), ny=(1,0)):
             s_array = np.zeros((2*a,2*a), dtype=complex)
             for i in range(2*a):
                 s_array[i]= np.linalg.solve(m_mat.T, Evec[i])
-            if counter<4:
-                print(s_array)
-                print('\n\n')
 
             nE = [fermidirac(E,T,o=0) for E in evals]
             dnE = [fermidirac(E,T,o=1) for E in evals]
@@ -171,16 +168,6 @@ def SFWconv(model, nk=41, my= (1,0), ny=(1,0)):
                                 w2 = s_k[m]
                                 w3 = np.conjugate(s_k[n+a])
                                 w4 = s_l[n+a]
-
-                                if counter<1:
-                                    print(w1)
-                                    print('\n\n')
-                                    print(w2)
-                                    print('\n\n')
-                                    print(w3)
-                                    print('\n\n')
-                                    print(w4)
-                                    print('\n\n')
 
                                 Cnn+=4*pf*w1*w2*w3*w4
                     
