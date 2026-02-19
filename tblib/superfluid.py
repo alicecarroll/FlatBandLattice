@@ -221,6 +221,9 @@ def SFWconv(s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t, nu, T, U, ns, 
             #Evec = evec.T 
             #Evec_up = evec_up.T 
             #Evec_down = evec_down.T 
+            evalsdmy[:] = 0.0+0.0j
+            evalsdny[:] = 0.0+0.0j
+
             for ei in range(n):
                 evalsdmy[ei] = matmul(evec_up[:,ei], matmul(dH_my[:n,:n], evec_up[:,ei]))
                 evalsdny[ei] = matmul(evec_down[:,ei], matmul(dH_ny[n:,n:], evec_down[:,ei]))
@@ -262,11 +265,10 @@ def SFWconv(s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t, nu, T, U, ns, 
                                 w4 = s_l[ni+n]
 
                                 Cnn+=4*pf*w1*w2*w3*w4
-                    if counter==0:
-                        print(Cnn, '\n\n', pf, w1, w2, w3, w4, '\n\n')
                     
                     upc = evalsdmy[mi]
                     downc = evalsdny[ni]
+                    
                     summe+=Cnn/(nk**2)*upc*downc
 
                     pref[scount] = Cnn/(nk**2)
