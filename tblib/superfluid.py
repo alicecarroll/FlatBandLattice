@@ -143,9 +143,6 @@ def SFWconv(model, nk=41, my= (1,0), ny=(1,0)):
             for i in range(2*a):
                 s_array[i]= np.linalg.solve(m_mat.T, Evec[i])
 
-            if counter==1:
-                print(s_array, '\n\n', m_mat, '\n\n', Evec.T)
-
             nE = [fermidirac(E,T,o=0) for E in evals]
             dnE = [fermidirac(E,T,o=1) for E in evals]
 
