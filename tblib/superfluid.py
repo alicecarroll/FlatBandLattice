@@ -173,6 +173,7 @@ def SFWconv(model, nk=41, my= (1,0), ny=(1,0)):
                     
                     upc = evalsdmy[m]
                     downc = evalsdny[n]
+                    
                     summe+=Cnn/(nk**2)*upc*downc
 
                             
