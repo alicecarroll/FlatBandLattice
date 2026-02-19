@@ -236,8 +236,6 @@ def SFWconv(s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t, nu, T, U, ns, 
             s_array = np.zeros((2*n,2*n), dtype=complex128)
             for i in range(2*n):
                 s_array[i]= np.linalg.solve(m_mat.T, Evec[:,i])
-            if counter <4:
-                print(m_mat.T, '\n\n', Evec.T)
 
             for ei,E in enumerate(evals):
                 nE[ei] = fermidirac(E,T,o=0)
