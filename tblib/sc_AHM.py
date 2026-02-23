@@ -9,7 +9,7 @@ from numba import njit, jit, prange, complex128
 def matmul(A, B):
     return np.dot(A, B)
 
-@njit(parallel=True)
+@njit#(parallel=True)
 def cooper(u,v,ubar,vbar,evals,T=0.0):
     if np.abs(T)<1e-10:#
         return  matmul(ubar.T,np.conjugate(vbar))
@@ -18,14 +18,24 @@ def cooper(u,v,ubar,vbar,evals,T=0.0):
         B = np.zeros_like(u, dtype=complex128)
         
         for j in prange(B.shape[1]):
-            A[j,j] = 1/(1+np.exp(-evals[j]/T))
-            B[j,j] = 1/(1+np.exp(evals[j]/T))
+            if np.abs(evals[j])<1e-5:
+                A[j,j] = 0.5+0.0j
+                B[j,j] = 0.5+0.0j
+            elif np.real(evals[j])<0.0 and np.abs(evals[j])>T*30:
+                A[j,j] = 0.0+0.0j
+                B[j,j] = 1.0+0.0j
+            elif np.real(evals[j])>0.0 and np.abs(evals[j])>T*30:
+                A[j,j] = 1.0+0.0j
+                B[j,j] = 0.0+0.0j
+            else:
+                A[j,j] = 1/(1+np.exp(-evals[j]/T))
+                B[j,j] = 1/(1+np.exp(evals[j]/T))
 
         el = matmul(ubar.T, matmul(A, np.conjugate(vbar)))
         el += matmul(v.T, matmul(B,np.conjugate(u)))
         return el
 
-@njit(parallel=True) 
+@njit#(parallel=True) 
 def hatree(u,v,ubar,vbar,evals,T=0.0):
     if np.abs(T)<1e-10:
         return matmul(vbar.T, np.conjugate(vbar))
@@ -34,8 +44,18 @@ def hatree(u,v,ubar,vbar,evals,T=0.0):
         B = np.zeros_like(u, dtype=complex128)
         
         for j in prange(B.shape[1]):
-            A[j,j] = 1/(1+np.exp(-evals[j]/T))
-            B[j,j] = 1/(1+np.exp(evals[j]/T))
+            if np.abs(evals[j])<1e-5:
+                A[j,j] = 0.5+0.0j
+                B[j,j] = 0.5+0.0j
+            elif np.real(evals[j])<0.0 and np.abs(evals[j])>T*30:
+                A[j,j] = 0.0+0.0j
+                B[j,j] = 1.0+0.0j
+            elif np.real(evals[j])>0.0 and np.abs(evals[j])>T*30:
+                A[j,j] = 1.0+0.0j
+                B[j,j] = 0.0+0.0j
+            else:
+                A[j,j] = 1/(1+np.exp(-evals[j]/T))
+                B[j,j] = 1/(1+np.exp(evals[j]/T))
 
         el = matmul(vbar.T,matmul(A, np.conjugate(vbar)))
         el += matmul(u.T,matmul(B, np.conjugate(u)))

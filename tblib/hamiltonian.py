@@ -1,12 +1,12 @@
 from . import lattice
 import numpy as np
-import scipy.constants as sc
-import matplotlib.pyplot as plt
-from numba import jit, prange, int64, complex128, float64
 from . import hamiltonian_opti
 from . import sc_AHM
+from . import superfluid
 from importlib import reload
 reload(hamiltonian_opti)
+reload(sc_AHM)
+reload(superfluid)
 
 
 class Model:
@@ -73,10 +73,6 @@ class Model:
         small = [self.n, self.lat.N, self.t, self.nu, self.T]
         big = np.array([self.U, self.ns, self.mu, self.delta], dtype=complex)
         return small, big
-    
-    def get_SFW(self):
-        """Default hopping function."""
-        return 0.0
 
     def get_H0(self, dnx=0, dny=0):
         """Get basic normal state Hamiltonian."""
@@ -131,7 +127,7 @@ class Model:
         
         return H_B
     
-    def get_sc_params(self, g=1e-6, HF=True, Nmax=300, Nmin=10, alpha=0.3):
+    def get_sc_params(self, g=5e-7, HF=True, Nmax=300, Nmin=10, alpha=0.3):
         """Get selfconsistent pairing strength delta, 
         occupation numbers n and on-site energy mu (if filling factor is defined)"""
 
@@ -148,6 +144,16 @@ class Model:
         self.mu = mus[:,-1]
         
         return dels, ons, mus
+    
+    def get_SFW(self):
+        """Get total, conventional and geometrical Ds=sqrt{det(D_ij)} and tensors D_ij"""
+
+        lparams = self.prep_lat_params()
+        sparams, bparams = self.prep_en_params()
+        U, ns, mu, delta= bparams
+        karr = np.linspace(0,2*np.pi, 41,endpoint=False)
+
+        return superfluid.det_SFWs(*lparams, *sparams, U, ns, mu, delta, karr)
 
 ### Model Initializations ###
 
