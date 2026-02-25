@@ -127,14 +127,14 @@ class Model:
         
         return H_B
     
-    def get_sc_params(self, g=5e-7, HF=True, Nmax=300, Nmin=10, alpha=0.3):
+    def get_sc_params(self, nk=41, g=5e-7, HF=True, Nmax=300, Nmin=10, alpha=0.3):
         """Get selfconsistent pairing strength delta, 
         occupation numbers n and on-site energy mu (if filling factor is defined)"""
 
         lparams = self.prep_lat_params()
         sparams, bparams = self.prep_en_params()
         U, ns, mu, delta= bparams
-        karr = np.linspace(0,2*np.pi, 41,endpoint=False)
+        karr = np.linspace(0,2*np.pi, nk,endpoint=False)
 
         dels, ons, mus = sc_AHM.self_consistency_loop(*lparams, *sparams, U, ns, mu, delta, 
                               karr, g, HF, Nmax, Nmin, alpha)
@@ -145,13 +145,13 @@ class Model:
         
         return dels, ons, mus
     
-    def get_SFW(self):
+    def get_SFW(self, nk=41):
         """Get total, conventional and geometrical Ds=sqrt{det(D_ij)} and tensors D_ij"""
 
         lparams = self.prep_lat_params()
         sparams, bparams = self.prep_en_params()
         U, ns, mu, delta= bparams
-        karr = np.linspace(0,2*np.pi, 41,endpoint=False)
+        karr = np.linspace(0,2*np.pi, nk,endpoint=False)
 
         return superfluid.det_SFWs(*lparams, *sparams, U, ns, mu, delta, karr)
 

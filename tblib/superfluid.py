@@ -42,7 +42,7 @@ def fermidirac(E,T,o=0):
     return nE
 
 @njit(parallel=True)
-def eigen_Hred(s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t, nu, T, U, ns, mu, delta, karr, dmy= (1,0), dny= (1,0)):
+def eigen_Hred(s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t, nu, T, U, ns, mu, delta, karr, dmy= (0,0)):
     '''
     Calculate all eigenvalues and eigenvectors of Hkin, Hreduced and their derivatives
     return as matrices respectively 
@@ -57,7 +57,7 @@ def eigen_Hred(s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t, nu, T, U, n
         for j in range(l):
             kx = karr[j]
 
-            Hred = hamiltonian_opti.HBdG(H.copy(), kx, ky, 0, 0, s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t, nu, T, U, ns, mu, delta)[1]
+            Hred = hamiltonian_opti.HBdG(H.copy(), kx, ky, dmy[0], dmy[1], s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t, nu, T, U, ns, mu, delta)[1]
             evals, evec = np.linalg.eigh(Hred)
 
             eval_arr[i*l+j] = evals.copy()
@@ -303,7 +303,7 @@ def SFW_complete(s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t, nu, T, U,
     dnE = np.zeros(2*n, dtype=complex128)
 
     eval_arr, evec_arr = eigen_Hred(s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t, nu, T, U, ns, mu, delta, 
-                          karr, dmy, dny)
+                          karr, (0,0), (0,0))
 
     sfw_tot = 0.0+0.0j
     sfw_conv = 0.0+0.0j

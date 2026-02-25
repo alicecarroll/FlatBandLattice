@@ -9,7 +9,17 @@ from numba import njit, jit, prange, complex128
 def matmul(A, B):
     return np.dot(A, B)
 
-@njit#(parallel=True)
+@njit(parallel=True, fastmath=True)
+def transpose(A):
+    '''A must be a 2D array'''
+    B = np.zeros_like(A)
+    l1,l2 = np.shape(A)
+    for i in prange(l1):
+        for j in range(l2):
+            B[i,j] = A[j,i]
+    return B
+
+@njit(parallel=True)
 def cooper(u,v,ubar,vbar,evals,T=0.0):
     if np.abs(T)<1e-10:#
         return  matmul(ubar.T,np.conjugate(vbar))
@@ -35,7 +45,7 @@ def cooper(u,v,ubar,vbar,evals,T=0.0):
         el += matmul(v.T, matmul(B,np.conjugate(u)))
         return el
 
-@njit#(parallel=True) 
+@njit(parallel=True)
 def hatree(u,v,ubar,vbar,evals,T=0.0):
     if np.abs(T)<1e-10:
         return matmul(vbar.T, np.conjugate(vbar))
@@ -61,36 +71,58 @@ def hatree(u,v,ubar,vbar,evals,T=0.0):
         el += matmul(u.T,matmul(B, np.conjugate(u)))
         return el 
 
+@njit(parallel=True)
+def eigen_Hred(s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t, nu, T, U, ns, mu, delta, karr, dmy= (0,0)):
+    '''
+    Calculate all eigenvalues and eigenvectors of Hkin, Hreduced and their derivatives
+    return as matrices respectively 
+    '''
+    H = np.zeros((n, n), dtype=complex128)
+    l = len(karr)
+    eval_arr = np.zeros((l**2, 2*n), dtype=complex128)
+    evec_arr = np.zeros((l**2, 2*n, 2*n), dtype=complex128)
+    
+    for i in prange(l): 
+        ky = karr[i]
+        for j in range(l):
+            kx = karr[j]
+
+            Hred = hamiltonian_opti.HBdG(H.copy(), kx, ky, dmy[0], dmy[1], s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t, nu, T, U, ns, mu, delta)[1]
+            evals, evec = np.linalg.eigh(Hred)
+
+            eval_arr[i*l+j] = evals.copy()
+            evec_arr[i*l+j] = evec.copy()
+        
+    return eval_arr, evec_arr
+
 @njit
 def get_mean_fields(s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t, nu, T, U, ns, mu, delta, karr, HF=True):
     
     nk = np.shape(karr)[0]
 
-    dnx = 0
-    dny = 0
-    
     Pairing=np.zeros((n,n), dtype=complex128)
     Occupation=np.zeros((n,n), dtype=complex128)
     deltas = np.zeros((n,), dtype=complex128)
     nsarr = np.zeros((n,), dtype=complex128)
-    H = np.zeros((n,n), dtype=complex128)
     evals = np.zeros((n,), dtype=complex128)
+    evals1 = np.zeros((2*n,), dtype=complex128)
+    Evec = np.zeros((2*n,2*n), dtype=complex128)
 
     u = np.zeros((n,n), dtype=complex128)
     v = np.zeros((n,n), dtype=complex128)
     vbar = np.zeros((n,n), dtype=complex128)
     ubar = np.zeros((n,n), dtype=complex128)
 
-    c=0
-    for ix in range(nk):
-        x = karr[ix]
-        for iy in range(nk):
-            y = karr[iy]
+    eval_arr, evec_arr = eigen_Hred(s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t, nu, T, U, ns, mu, delta, 
+                          karr, (0,0))
+    
+    for iy in range(nk):
+        for ix in range(nk):
             
-            c+=1
+            evals1[:] = eval_arr[iy*nk+ix]
+            Evec[:] = evec_arr[iy*nk+ix]
 
-            evals1, Evec = np.linalg.eigh(hamiltonian_opti.HBdG(H, x, y, dnx, dny, s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t, nu, T, U, ns, mu, delta)[1])
-            Evec = Evec.T
+            Evec = transpose(Evec)
             Evec2 = np.empty_like(Evec)
             for i in range(Evec.shape[0]):
                 Evec2[i,:] = Evec[Evec.shape[0]-1-i,:]
@@ -109,7 +141,7 @@ def get_mean_fields(s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t, nu, T,
                 Occupation += hatree(u,v,ubar,vbar,evals,T)         
     
     Nmat = np.diag(Occupation)/nk**2
-    for i in prange(n):
+    for i in range(n):
         deltas[i] = -Pairing[i,i]/nk**2
         nsarr[i] = Nmat[i]*2
 

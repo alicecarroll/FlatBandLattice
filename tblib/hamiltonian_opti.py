@@ -3,7 +3,7 @@ from numba import njit, prange, complex128
 
 #def hopping_prep(site, nn, R, k, t):
 #    s = np.asarray()
-@njit
+@njit#(fastmath=True)
 def hopping_kernel(kx, ky, dnx, dny, N, sx, sy, nnx, nny, R, r0, r1, t):
 
     kx/=N
@@ -28,7 +28,7 @@ def hopping_kernel(kx, ky, dnx, dny, N, sx, sy, nnx, nny, R, r0, r1, t):
         res += - 1/N*t*dfarr*f0   # f(sublattice)*g'(uc)
     return res
 
-@njit(parallel=True, fastmath=True)
+@njit(parallel=True)#, fastmath=True)
 def H_kin(H, kx, ky, dnx, dny, s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t):
     """
     Evaluate the hopping Hamiltonian at given kx, ky.
@@ -53,7 +53,7 @@ def H_kin(H, kx, ky, dnx, dny, s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N
 
     return H_kin
 
-@njit(parallel=True, fastmath=True)
+@njit(parallel=True)#, fastmath=True)
 def H_0(H, kx, ky, dnx, dny, s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t, nu, T, U, ns, mu):
     """
     Evaluate the hopping Hamiltonian at given kx, ky.
@@ -70,7 +70,7 @@ def H_0(H, kx, ky, dnx, dny, s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, 
             
     return H
 
-@njit(parallel=True, fastmath=True)
+@njit(parallel=True)#, fastmath=True)
 def HBdG(H, kx, ky, dnx, dny, s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t, nu, T, U, ns, mu, delta): 
     """Evaluate the Hamiltonian at given kx, ky."""
 
