@@ -230,12 +230,11 @@ def self_consistency_loop(s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t, 
             
             en=0.0+0j
             H0[:]=0.0+0j
-            H = hamiltonian_opti.HBdG(H0, 0.0,0.0, dnx, dny, s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t, nu, T, U, narro, muarro, delarro)[1]
+            #H = hamiltonian_opti.HBdG(H0, 0.0,0.0, dnx, dny, s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t, nu, T, U, narro, muarro, delarro)[1]
             #print(H)
             for i in range(n):
-                en += H[i,i]
+                en += -muarro[i]-0.5*U[0]*narro[i]#H[i,i]
                 
-
             mun = 1/(n)*(U[0]/2*(nu-n*2)+en)
 
             for i in range(n):

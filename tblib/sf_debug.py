@@ -208,8 +208,9 @@ def SFWconv(s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t, nu, T, U, ns, 
             dH_my = hamiltonian_opti.H_kin(H.copy(), kx, ky, dmy[0], dmy[1], s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t)
             dH_ny = hamiltonian_opti.H_kin(H.copy(), kx, ky, dny[0], dny[1], s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t)
 
-            H_up = hamiltonian_opti.H_kin(H.copy(), kx, ky, 0, 0, s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t)[:n,:n]
-            H_down = -hamiltonian_opti.H_kin(H.copy(), kx, ky, 0, 0, s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t)[n:,n:]
+            Hkin = hamiltonian_opti.H_kin(H.copy(), kx, ky, 0, 0, s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t)
+            H_up = Hkin[:n,:n].copy()
+            H_down = hamiltonian_opti.H_kin(H.copy(), kx, ky, 0, 0, s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t)[n:,n:]#Hkin[n:,n:].copy()
             
             evals[:] = eval_arr[counter]
             Evec[:] = evec_arr[counter]
@@ -220,8 +221,8 @@ def SFWconv(s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t, nu, T, U, ns, 
             evalsdny[:] = 0.0+0.0j
 
             for ei in range(n):
-                evalsdmy[ei] = matmul(evec_up[:,ei], matmul(dH_my[:n,:n], evec_up[:,ei]))
-                evalsdny[ei] = matmul(evec_down[:,ei], matmul(dH_ny[n:,n:], evec_down[:,ei]))
+                evalsdmy[ei] = matmul(np.conjugate(evec_up[:,ei]), matmul(dH_my[:n,:n], evec_up[:,ei]))
+                evalsdny[ei] = matmul(np.conjugate(evec_down[:,ei]), matmul(dH_ny[n:,n:], evec_down[:,ei]))
 
             m_mat[:] = 0.0+0.0j
             m_mat[:n,:n]=evec_up.T

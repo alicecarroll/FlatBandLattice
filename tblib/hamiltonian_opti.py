@@ -16,15 +16,15 @@ def hopping_kernel(kx, ky, dnx, dny, N, sx, sy, nnx, nny, R, r0, r1, t):
     farr = 0.0+0.0j
     dfarr = 0.0+0.0j
     for r in range(r0, r1):
-        dRkx = 1j  * N * R[r,0]
-        dRky = 1j  * N * R[r,1] 
+        dRkx = 1j  * R[r,0] *N
+        dRky = 1j  * R[r,1] *N
         farr += np.exp(dRkx * kx + dRky * ky)
         dfarr += np.exp(dRkx * kx + dRky * ky)*(dRkx**dnx) * (dRky**dny)
 
     if dnx == 0 and dny == 0:
         res = -t * f0 * farr 
     else:
-        res = - 1/N*t * (drkx**dnx) * (drky**dny) * f0 * farr # f'(sublattice)*g(uc)
+        res = -  1/N*t * (drkx**dnx) * (drky**dny) * f0 * farr # f'(sublattice)*g(uc)
         res += - 1/N*t*dfarr*f0   # f(sublattice)*g'(uc)
     return res
 
@@ -46,10 +46,10 @@ def H_kin(H, kx, ky, dnx, dny, s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N
         i=n_idx[e]
         
         H0k[i,j] += hopping_kernel(kx, ky, dnx, dny, N, sx[e], sy[e], nx[e], ny[e], R_flat, R_ptr[e], R_ptr[e+1], t)
-        H0kh[i,j] += -hopping_kernel(-kx, -ky, dnx, dny, N, sx[e], sy[e], nx[e], ny[e], R_flat, R_ptr[e], R_ptr[e+1], t)
+        H0kh[i,j] += hopping_kernel(-kx, -ky, dnx, dny, N, sx[e], sy[e], nx[e], ny[e], R_flat, R_ptr[e], R_ptr[e+1], t)
     
     H_kin[:n, :n] = H0k
-    H_kin[n:, n:] = -np.conjugate(H0kh)
+    H_kin[n:, n:] = np.conjugate(H0kh)
 
     return H_kin
 

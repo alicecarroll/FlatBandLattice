@@ -89,8 +89,11 @@ def SFW_complete(s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t, nu, T, U,
             Hdmy = hamiltonian_opti.H_kin(H.copy(), kx, ky, dmy[0], dmy[1], s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t)
             Hdny = hamiltonian_opti.H_kin(H.copy(), kx, ky, dny[0], dny[1], s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t)
 
-            H_up = hamiltonian_opti.H_kin(H.copy(), kx, ky, 0, 0, s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t)[:n,:n]
-            H_down = -hamiltonian_opti.H_kin(H.copy(), kx, ky, 0, 0, s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t)[n:,n:]
+            #H_up = hamiltonian_opti.H_kin(H.copy(), kx, ky, 0, 0, s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t)[:n,:n]
+            #H_down = -hamiltonian_opti.H_kin(H.copy(), kx, ky, 0, 0, s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t)[n:,n:]
+            Hkin = hamiltonian_opti.H_kin(H.copy(), kx, ky, 0, 0, s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t)
+            H_up = Hkin[:n,:n].copy()
+            H_down = Hkin[n:,n:].copy()
 
             evals = eval_arr[yi*nk+xj]
             Evec = evec_arr[yi*nk+xj]
@@ -100,15 +103,12 @@ def SFW_complete(s_idx, n_idx, sx, sy, nx, ny, R_ptr, R_flat, n, N, t, nu, T, U,
             M1 = matmul(Hdmy,gammaz)
             M2 = matmul(Hdny,gammaz)      
 
-            #evalsdmy[:] = 0.0+0.0j
-            #evalsdny[:] = 0.0+0.0j  
             evalsdmy = np.zeros(n, dtype=complex128)
             evalsdny = np.zeros(n, dtype=complex128)
             for ei in prange(n):
-                evalsdmy[ei] = matmul(evec_up[:,ei], matmul(Hdmy[:n,:n],evec_up[:,ei]))
-                evalsdny[ei] = matmul(evec_down[:,ei], matmul(Hdny[n:,n:],evec_down[:,ei]))
+                evalsdmy[ei] = matmul(np.conjugate(evec_up[:,ei]), matmul(Hdmy[:n,:n],evec_up[:,ei]))
+                evalsdny[ei] = matmul(np.conjugate(evec_down[:,ei]), matmul(Hdny[n:,n:],evec_down[:,ei]))
 
-            #m_mat = 0.0+0.0j
             m_mat = np.zeros((2*n, 2*n), dtype=complex128)
             m_mat[:n,:n]=transpose(evec_up)
             m_mat[n:,n:]=transpose(evec_down)
