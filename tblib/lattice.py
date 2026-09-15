@@ -55,6 +55,39 @@ class Lattice:
                         ax.plot(x1, y1, c='black', zorder=-1)
                         ax.plot(x2, y2, c='black', zorder=-1)
         return ax
+    
+    def plot_system(self, nuc=1, ax=None, field=None, cmap='viridis'):
+
+        if ax is None: _, ax = plt.subplots()
+        ax.set_aspect('equal')
+        ax.set_xticks([])
+        ax.set_yticks([])
+        sites = np.array(self.sites)
+        syst = []
+        for s in sites:
+            for n in range(nuc):
+                for m in range(nuc):
+                    syst.append((s[0]+self.N*m, s[1]+self.N*n))
+
+        for site in self.nn:
+            for nn in self.nn[site]:
+                for n in range(nuc):
+                    for m in range(nuc):
+                        for R in self.nn[site][nn]:
+                            if R == (0,0):
+                                x = [site[0]+self.N*m, nn[0]+self.N*m]
+                                y = [site[1]+self.N*n, nn[1]+self.N*n]
+                                ax.plot(x, y, c='black', zorder=-1)
+                            else:
+                                x1 = [site[0]+self.N*m, site[0]+R[0]/2+self.N*m]
+                                y1 = [site[1]+self.N*n, site[1]+R[1]/2+self.N*n]
+                                x2 = [nn[0]+self.N*m, nn[0]-R[0]/2+self.N*m]
+                                y2 = [nn[1]+self.N*n, nn[1]-R[1]/2+self.N*n]
+                                ax.plot(x1, y1, c='black', zorder=-1)
+                                ax.plot(x2, y2, c='black', zorder=-1)
+
+        ax.scatter(*np.array(syst).T, c='k')
+        return ax
 
     def striped_props(self, props):
         

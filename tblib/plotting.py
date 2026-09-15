@@ -1,7 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-
 hsp_dict = {
     'G': (0, 0),
     'X': (np.pi, 0),
