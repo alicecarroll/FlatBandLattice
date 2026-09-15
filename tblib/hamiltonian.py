@@ -192,7 +192,7 @@ class SquareLatticeModel(Model):
         self.lat = lattice.SquareLattice()
         super().__init__(lat=self.lat)
 
-        self.n = 1
+        self.n = self.lat.N**2
         self.dim = 4 * self.n
         _init_square_base(self, 1, **kwargs)
 
